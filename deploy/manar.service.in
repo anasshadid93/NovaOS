@@ -1,0 +1,34 @@
+[Unit]
+Description=MinisManager — home server manager (PWA backend)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@USER@
+Group=@GROUP@
+WorkingDirectory=@ROOT@/server
+Environment=NODE_ENV=production
+Environment=MANAR_PORT=@PORT@
+ExecStart=/usr/bin/node @ROOT@/server/dist/index.js
+# on-failure also covers the setup wizard, which exits 3 to reload the config it just wrote.
+Restart=on-failure
+RestartSec=3
+
+# Keep Manar itself light: it must stay well under 2% CPU.
+Nice=5
+CPUWeight=50
+MemoryMax=512M
+TasksMax=128
+
+# Hardening. NoNewPrivileges is NOT set: the sudo helper needs it off.
+PrivateTmp=yes
+ProtectSystem=full
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=no
+LockPersonality=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/canvas">
+
+    <com.n5.minismanager.PullToRefresh
+        android:id="@+id/swipe"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <WebView
+            android:id="@+id/web"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/canvas" />
+    </com.n5.minismanager.PullToRefresh>
+
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/loading"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:indeterminate="false"
+        android:visibility="gone"
+        app:indicatorColor="@color/primary"
+        app:trackThickness="3dp" />
+
+    <!-- Server unreachable -->
+    <LinearLayout
+        android:id="@+id/errorPanel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/canvas"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="32dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_marginBottom="20dp"
+            android:alpha="0.85"
+            android:contentDescription="@null"
+            android:src="@drawable/logo" />
+
+        <TextView
+            style="@style/TextHeading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="@string/error_title" />
+
+        <TextView
+            android:id="@+id/errorBody"
+            style="@style/TextMuted"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:maxWidth="440dp"
+            android:text="@string/error_body" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/retry"
+            android:layout_width="260dp"
+            android:layout_height="58dp"
+            android:layout_marginTop="28dp"
+            android:text="@string/retry"
+            app:cornerRadius="16dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/errorSettings"
+            style="@style/MM.Button.Text"
+            android:layout_width="260dp"
+            android:layout_height="52dp"
+            android:layout_marginTop="6dp"
+            android:text="@string/open_settings" />
+    </LinearLayout>
+
+    <!-- Fingerprint lock -->
+    <LinearLayout
+        android:id="@+id/lockPanel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/canvas"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_marginBottom="20dp"
+            android:contentDescription="@null"
+            android:src="@drawable/logo" />
+
+        <TextView
+            style="@style/TextHeading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/lock_title" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/unlock"
+            android:layout_width="220dp"
+            android:layout_height="58dp"
+            android:layout_marginTop="28dp"
+            android:text="@string/unlock"
+            app:cornerRadius="16dp" />
+    </LinearLayout>
+
+    <!-- Full-screen video from the page -->
+    <FrameLayout
+        android:id="@+id/fullscreen"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#000000"
+        android:visibility="gone" />
+</FrameLayout>

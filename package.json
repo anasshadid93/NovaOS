@@ -1,0 +1,13 @@
+{
+  "name": "manar",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": ["server", "web"],
+  "scripts": {
+    "build": "npm run build -w web && npm run build -w server",
+    "test": "npm test -w server && npm test -w web",
+    "dev:server": "npm run dev -w server",
+    "dev:web": "npm run dev -w web"
+  },
+  "engines": { "node": ">=22.13" }
+}

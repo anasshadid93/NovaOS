@@ -1,0 +1,5 @@
+# /etc/sudoers.d/manar — installed root:root 0440 by deploy/install.sh
+# MinisManager (runs as @USER@) may run exactly one root-owned helper, which validates
+# its own arguments. No other sudo access is granted here.
+Defaults!/usr/local/sbin/manar-helper !requiretty, env_reset
+@USER@ ALL=(root) NOPASSWD: /usr/local/sbin/manar-helper

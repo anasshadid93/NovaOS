@@ -1,0 +1,12 @@
+<resources>
+    <color name="primary">#2F6FE4</color>
+    <color name="primary_strong">#2459C0</color>
+    <color name="primary_soft">#E6EEFC</color>
+    <color name="canvas">#EEF3FB</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="ink">#1F2937</color>
+    <color name="heading">#1A3A7C</color>
+    <color name="muted">#64748B</color>
+    <color name="danger">#DC2626</color>
+    <color name="ok">#16A34A</color>
+</resources>

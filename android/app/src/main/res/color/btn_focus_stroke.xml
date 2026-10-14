@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TV remote: the focused button gets a clear ring; otherwise none. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/heading" android:state_focused="true" />
+    <item android:color="@android:color/transparent" />
+</selector>

@@ -1,0 +1,9 @@
+<resources>
+    <color name="primary_soft">#1D2D4F</color>
+    <color name="primary_strong">#C9D8F7</color>
+    <color name="canvas">#0F1726</color>
+    <color name="surface">#182235</color>
+    <color name="ink">#E5E9F2</color>
+    <color name="heading">#C9D8F7</color>
+    <color name="muted">#94A3B8</color>
+</resources>

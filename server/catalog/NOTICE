@@ -1,0 +1,23 @@
+Manar app catalog
+
+Most entries in catalog.json are derived from CasaOS-AppStore
+  https://github.com/IceWhaleTech/CasaOS-AppStore
+  commit 0909364b800950030e71ea82355a5969a1c08b39
+Copyright IceWhale Technology and CasaOS-AppStore contributors.
+Licensed under the Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0).
+
+Changes made by Manar: compose files were converted to Manar's schema, CasaOS
+metadata (x-casaos) was reduced to title/tagline/description/category/web port,
+and apps that need host networking, privileged mode, NVIDIA or non-amd64 were
+removed. At install time Manar rewrites ports to 127.0.0.1, data paths to
+/srv/data/apps/<id>, and replaces default passwords with generated secrets.
+
+Entries in extra.json are written by Manar and are not from CasaOS-AppStore.
+
+App logos are fetched at runtime from homarr-labs/dashboard-icons (Apache-2.0)
+  https://github.com/homarr-labs/dashboard-icons
+
+When dashboard-icons has no logo for an app, Manar shows the app's own icon
+referenced by the CasaOS-AppStore entry (field iconUrl; CasaOS-hosted icons are
+pinned to the commit above). Icons of the services on n5 are read from those
+services themselves.

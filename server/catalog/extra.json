@@ -1,0 +1,1670 @@
+{
+ "note": "Entries written for Manar (not from CasaOS-AppStore). `hide` removes catalog apps that conflict with services already running on the server.",
+ "hide": [
+  "ollama"
+ ],
+ "apps": [
+  {
+   "id": "filebrowser",
+   "title": "File Browser",
+   "tagline": "Browse, upload and share files in /srv/data",
+   "description": "A web file manager for the data folder. Manar's Files screen opens it, optionally filtered by category.",
+   "category": "Productivity",
+   "developer": "File Browser contributors",
+   "icon": "filebrowser",
+   "main": "filebrowser",
+   "web": {
+    "port": 80,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "filebrowser": {
+      "image": "filebrowser/filebrowser:v2.63.23",
+      "user": "1000:1000",
+      "restart": "unless-stopped",
+      "ports": [
+       {
+        "target": 80,
+        "published": "8080",
+        "protocol": "tcp"
+       }
+      ],
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$DATA_ROOT",
+        "target": "/srv"
+       },
+       {
+        "type": "bind",
+        "source": "$APP_DATA/database",
+        "target": "/database"
+       },
+       {
+        "type": "bind",
+        "source": "$APP_DATA/config",
+        "target": "/config"
+       }
+      ],
+      "environment": {
+       "FB_NOAUTH": "false"
+      }
+     }
+    }
+   },
+   "tips": "First login: admin and the generated password shown in the app's logs.",
+   "source": {
+    "repo": "manar",
+    "path": "server/catalog/extra.json"
+   }
+  },
+  {
+   "id": "stirling-pdf",
+   "title": "Stirling PDF",
+   "tagline": "Edit, merge, split, convert, sign and OCR PDF files",
+   "description": "Self-hosted PDF toolkit with 50+ tools: merge, split, rotate, compress, convert to and from PDF, OCR, sign, watermark, redact and more. Files are processed on the server and never leave the server.",
+   "category": "Productivity",
+   "developer": "Stirling Tools",
+   "icon": "stirling-pdf",
+   "main": "stirling-pdf",
+   "web": {
+    "port": 8080,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "stirling-pdf": {
+      "image": "stirlingtools/stirling-pdf:3.1.0",
+      "restart": "unless-stopped",
+      "ports": [
+       {
+        "target": 8080,
+        "published": "8080",
+        "protocol": "tcp"
+       }
+      ],
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/configs",
+        "target": "/configs"
+       },
+       {
+        "type": "bind",
+        "source": "$APP_DATA/logs",
+        "target": "/logs"
+       },
+       {
+        "type": "bind",
+        "source": "$APP_DATA/pipeline",
+        "target": "/pipeline"
+       }
+      ],
+      "environment": {
+       "SECURITY_ENABLELOGIN": "false",
+       "SYSTEM_DEFAULTLOCALE": "en-GB",
+       "LANGS": "en_GB,ar_AR"
+      }
+     }
+    }
+   },
+   "tips": "No separate login: it is reachable only on your tailnet. Change the language from the globe icon (Arabic is available).",
+   "source": {
+    "repo": "Stirling-Tools/Stirling-PDF",
+    "path": "docker.stirlingpdf.com (image stirlingtools/stirling-pdf)"
+   }
+  },
+  {
+   "id": "browser",
+   "title": "Browser",
+   "tagline": "A real Chromium running on the server, used from any screen",
+   "description": "Chromium on the server, shown in your browser (or a MinisManager desktop window). Opens any website, including ones that can't be embedded. Downloads land in Files → Downloads.",
+   "category": "Utilities",
+   "developer": "LinuxServer.io / Chromium",
+   "icon": "chromium",
+   "main": "browser",
+   "web": {
+    "port": 3000,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "browser": {
+      "image": "lscr.io/linuxserver/chromium:627c19be-ls57",
+      "restart": "unless-stopped",
+      "shm_size": "1gb",
+      "ports": [
+       {
+        "target": 3000,
+        "published": "3000",
+        "protocol": "tcp"
+       }
+      ],
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/config",
+        "target": "/config"
+       },
+       {
+        "type": "bind",
+        "source": "$DATA_ROOT/files/Downloads",
+        "target": "/config/Downloads"
+       }
+      ],
+      "environment": {
+       "PUID": "1000",
+       "PGID": "1000",
+       "TZ": "Asia/Dubai",
+       "TITLE": "Browser",
+       "RESTART_APP": "true"
+      }
+     }
+    }
+   },
+   "tips": "Reachable only on your tailnet. The container has its own root shell inside the browser GUI (not on the server itself).",
+   "source": {
+    "repo": "linuxserver/docker-chromium",
+    "path": "lscr.io/linuxserver/chromium"
+   }
+  },
+  {
+   "id": "libreoffice",
+   "title": "LibreOffice",
+   "tagline": "Documents, spreadsheets and presentations",
+   "description": "The full LibreOffice suite (Writer, Calc, Impress, Draw) running on the server. Opens and saves Word, Excel and PowerPoint files; your library is in Files.",
+   "category": "Office",
+   "developer": "The Document Foundation / LinuxServer.io",
+   "icon": "libreoffice",
+   "main": "libreoffice",
+   "web": {
+    "port": 3000,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "libreoffice": {
+      "image": "lscr.io/linuxserver/libreoffice:25.8.7.3-r0-ls5",
+      "restart": "unless-stopped",
+      "shm_size": "1gb",
+      "ports": [
+       {
+        "target": 3000,
+        "published": "3000",
+        "protocol": "tcp"
+       }
+      ],
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/config",
+        "target": "/config"
+       },
+       {
+        "type": "bind",
+        "source": "$DATA_ROOT/files",
+        "target": "/config/Files"
+       }
+      ],
+      "environment": {
+       "PUID": "1000",
+       "PGID": "1000",
+       "TZ": "Asia/Dubai",
+       "TITLE": "LibreOffice",
+       "RESTART_APP": "true"
+      }
+     }
+    }
+   },
+   "tips": "Runs on the server and shows in your browser or a MinisManager desktop window. Your library is at Files (/config/Files) inside the app. Reachable only on your tailnet.",
+   "source": {
+    "repo": "linuxserver/docker-libreoffice",
+    "path": "lscr.io/linuxserver/libreoffice:25.8.7.3-r0-ls5"
+   }
+  },
+  {
+   "id": "freecad",
+   "title": "FreeCAD",
+   "tagline": "Open-source CAD: 2D drawings and 3D parametric models",
+   "description": "FreeCAD — an open-source alternative to AutoCAD for technical drawing (TechDraw/Sketcher) and 3D parametric modelling. Opens DXF/DWG (via converters), STEP, IGES and STL.",
+   "category": "Creative",
+   "developer": "FreeCAD project / LinuxServer.io",
+   "icon": "freecad",
+   "main": "freecad",
+   "web": {
+    "port": 3000,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "freecad": {
+      "image": "lscr.io/linuxserver/freecad:1.1.4-ls153",
+      "restart": "unless-stopped",
+      "shm_size": "1gb",
+      "ports": [
+       {
+        "target": 3000,
+        "published": "3000",
+        "protocol": "tcp"
+       }
+      ],
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/config",
+        "target": "/config"
+       },
+       {
+        "type": "bind",
+        "source": "$DATA_ROOT/files",
+        "target": "/config/Files"
+       }
+      ],
+      "environment": {
+       "PUID": "1000",
+       "PGID": "1000",
+       "TZ": "Asia/Dubai",
+       "TITLE": "FreeCAD",
+       "RESTART_APP": "true"
+      },
+      "devices": [
+       "/dev/dri:/dev/dri"
+      ]
+     }
+    }
+   },
+   "tips": "Runs on the server and shows in your browser or a MinisManager desktop window. Your library is at Files (/config/Files) inside the app. Reachable only on your tailnet.",
+   "source": {
+    "repo": "linuxserver/docker-freecad",
+    "path": "lscr.io/linuxserver/freecad:1.1.4-ls153"
+   }
+  },
+  {
+   "id": "blender",
+   "title": "Blender",
+   "tagline": "3D modelling, animation and rendering",
+   "description": "Blender running on the server with the Radeon GPU for the viewport. Models, animation, rendering and video editing; projects in Files.",
+   "category": "Creative",
+   "developer": "Blender Foundation / LinuxServer.io",
+   "icon": "blender",
+   "main": "blender",
+   "web": {
+    "port": 3000,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "blender": {
+      "image": "lscr.io/linuxserver/blender:5.2.2-ls242",
+      "restart": "unless-stopped",
+      "shm_size": "1gb",
+      "ports": [
+       {
+        "target": 3000,
+        "published": "3000",
+        "protocol": "tcp"
+       }
+      ],
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/config",
+        "target": "/config"
+       },
+       {
+        "type": "bind",
+        "source": "$DATA_ROOT/files",
+        "target": "/config/Files"
+       }
+      ],
+      "environment": {
+       "PUID": "1000",
+       "PGID": "1000",
+       "TZ": "Asia/Dubai",
+       "TITLE": "Blender",
+       "RESTART_APP": "true"
+      },
+      "devices": [
+       "/dev/dri:/dev/dri"
+      ]
+     }
+    }
+   },
+   "tips": "Runs on the server and shows in your browser or a MinisManager desktop window. Your library is at Files (/config/Files) inside the app. Reachable only on your tailnet.",
+   "source": {
+    "repo": "linuxserver/docker-blender",
+    "path": "lscr.io/linuxserver/blender:5.2.2-ls242"
+   }
+  },
+  {
+   "id": "filmcraft-desktop",
+   "title": "FilmCraft (the server)",
+   "tagline": "Video editor (runs on the server)",
+   "description": "FilmCraft, the open-source video editor, running on the server and streamed to any screen — for phones and tablets whose graphics can't run the in-browser version.",
+   "category": "Creative",
+   "developer": "ArtCraft / LinuxServer.io",
+   "icon": "craft:filmcraft",
+   "main": "filmcraft-desktop",
+   "web": {
+    "port": 3000,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "filmcraft-desktop": {
+      "image": "lscr.io/linuxserver/blender:5.2.2-ls242",
+      "restart": "unless-stopped",
+      "shm_size": "1gb",
+      "ports": [
+       {
+        "target": 3000,
+        "published": "3000",
+        "protocol": "tcp"
+       }
+      ],
+      "devices": [
+       "/dev/dri:/dev/dri"
+      ],
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/config",
+        "target": "/config"
+       },
+       {
+        "type": "bind",
+        "source": "$DATA_ROOT/files",
+        "target": "/config/Files"
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/filmcraft/desktop",
+        "target": "/opt/app",
+        "read_only": true
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/_desktop/launch.sh",
+        "target": "/blender/blender",
+        "read_only": true
+       }
+      ],
+      "environment": {
+       "PUID": "1000",
+       "PGID": "1000",
+       "TZ": "Asia/Dubai",
+       "TITLE": "FilmCraft",
+       "RESTART_APP": "true"
+      }
+     }
+    }
+   },
+   "tips": "The Linux desktop build from ~/ArtCraft (update with ~/ArtCraft/update.sh), shown in the browser. One device at a time.",
+   "source": {
+    "repo": "storytold/filmcraft",
+    "path": "~/ArtCraft (desktop build) in the LinuxServer Selkies image"
+   }
+  },
+  {
+   "id": "vectorcraft-desktop",
+   "title": "VectorCraft (the server)",
+   "tagline": "Vector illustration (runs on the server)",
+   "description": "VectorCraft, open-source vector illustration, running on the server and streamed to any screen.",
+   "category": "Creative",
+   "developer": "ArtCraft / LinuxServer.io",
+   "icon": "craft:vectorcraft",
+   "main": "vectorcraft-desktop",
+   "web": {
+    "port": 3000,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "vectorcraft-desktop": {
+      "image": "lscr.io/linuxserver/blender:5.2.2-ls242",
+      "restart": "unless-stopped",
+      "shm_size": "1gb",
+      "ports": [
+       {
+        "target": 3000,
+        "published": "3000",
+        "protocol": "tcp"
+       }
+      ],
+      "devices": [
+       "/dev/dri:/dev/dri"
+      ],
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/config",
+        "target": "/config"
+       },
+       {
+        "type": "bind",
+        "source": "$DATA_ROOT/files",
+        "target": "/config/Files"
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/vectorcraft/desktop",
+        "target": "/opt/app",
+        "read_only": true
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/_desktop/launch.sh",
+        "target": "/blender/blender",
+        "read_only": true
+       }
+      ],
+      "environment": {
+       "PUID": "1000",
+       "PGID": "1000",
+       "TZ": "Asia/Dubai",
+       "TITLE": "VectorCraft",
+       "RESTART_APP": "true"
+      }
+     }
+    }
+   },
+   "tips": "The Linux desktop build from ~/ArtCraft (update with ~/ArtCraft/update.sh), shown in the browser. One device at a time.",
+   "source": {
+    "repo": "storytold/vectorcraft",
+    "path": "~/ArtCraft (desktop build) in the LinuxServer Selkies image"
+   }
+  },
+  {
+   "id": "effectcraft-desktop",
+   "title": "EffectCraft (the server)",
+   "tagline": "Motion graphics & VFX (runs on the server)",
+   "description": "EffectCraft, open-source motion graphics and visual effects, running on the server and streamed to any screen.",
+   "category": "Creative",
+   "developer": "ArtCraft / LinuxServer.io",
+   "icon": "craft:effectcraft",
+   "main": "effectcraft-desktop",
+   "web": {
+    "port": 3000,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "effectcraft-desktop": {
+      "image": "lscr.io/linuxserver/blender:5.2.2-ls242",
+      "restart": "unless-stopped",
+      "shm_size": "1gb",
+      "ports": [
+       {
+        "target": 3000,
+        "published": "3000",
+        "protocol": "tcp"
+       }
+      ],
+      "devices": [
+       "/dev/dri:/dev/dri"
+      ],
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/config",
+        "target": "/config"
+       },
+       {
+        "type": "bind",
+        "source": "$DATA_ROOT/files",
+        "target": "/config/Files"
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/effectcraft/desktop",
+        "target": "/opt/app",
+        "read_only": true
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/_desktop/launch.sh",
+        "target": "/blender/blender",
+        "read_only": true
+       }
+      ],
+      "environment": {
+       "PUID": "1000",
+       "PGID": "1000",
+       "TZ": "Asia/Dubai",
+       "TITLE": "EffectCraft",
+       "RESTART_APP": "true"
+      }
+     }
+    }
+   },
+   "tips": "The Linux desktop build from ~/ArtCraft (update with ~/ArtCraft/update.sh), shown in the browser. One device at a time.",
+   "source": {
+    "repo": "storytold/effectcraft",
+    "path": "~/ArtCraft (desktop build) in the LinuxServer Selkies image"
+   }
+  },
+  {
+   "id": "designcraft-desktop",
+   "title": "DesignCraft (the server)",
+   "tagline": "Page layout & publishing (runs on the server)",
+   "description": "DesignCraft, open-source page layout and publishing, running on the server and streamed to any screen.",
+   "category": "Creative",
+   "developer": "ArtCraft / LinuxServer.io",
+   "icon": "craft:designcraft",
+   "main": "designcraft-desktop",
+   "web": {
+    "port": 3000,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "designcraft-desktop": {
+      "image": "lscr.io/linuxserver/blender:5.2.2-ls242",
+      "restart": "unless-stopped",
+      "shm_size": "1gb",
+      "ports": [
+       {
+        "target": 3000,
+        "published": "3000",
+        "protocol": "tcp"
+       }
+      ],
+      "devices": [
+       "/dev/dri:/dev/dri"
+      ],
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/config",
+        "target": "/config"
+       },
+       {
+        "type": "bind",
+        "source": "$DATA_ROOT/files",
+        "target": "/config/Files"
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/designcraft/desktop",
+        "target": "/opt/app",
+        "read_only": true
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/_desktop/launch.sh",
+        "target": "/blender/blender",
+        "read_only": true
+       }
+      ],
+      "environment": {
+       "PUID": "1000",
+       "PGID": "1000",
+       "TZ": "Asia/Dubai",
+       "TITLE": "DesignCraft",
+       "RESTART_APP": "true"
+      }
+     }
+    }
+   },
+   "tips": "The Linux desktop build from ~/ArtCraft (update with ~/ArtCraft/update.sh), shown in the browser. One device at a time.",
+   "source": {
+    "repo": "storytold/designcraft",
+    "path": "~/ArtCraft (desktop build) in the LinuxServer Selkies image"
+   }
+  },
+  {
+   "id": "searxng",
+   "title": "SearXNG",
+   "tagline": "Private web search for you and your automations",
+   "description": "A private metasearch engine: it asks Google, Bing, DuckDuckGo, Wikipedia and others for you, without tracking or ads. Your n8n assistant uses it to search the web.",
+   "category": "Utilities",
+   "developer": "SearXNG",
+   "icon": "searxng",
+   "main": "searxng",
+   "web": {
+    "port": 8080,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "searxng": {
+      "image": "searxng/searxng:2026.10.7-6671d89be",
+      "restart": "unless-stopped",
+      "ports": [
+       {
+        "target": 8080,
+        "published": "8080",
+        "protocol": "tcp"
+       }
+      ],
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/config",
+        "target": "/etc/searxng"
+       },
+       {
+        "type": "bind",
+        "source": "$APP_DATA/cache",
+        "target": "/var/cache/searxng"
+       }
+      ],
+      "environment": {
+       "SEARXNG_BASE_URL": "http://localhost:8080/"
+      }
+     }
+    }
+   },
+   "tips": "Only on your tailnet. The n8n assistant reaches it as http://searxng:8080 on the private manar-ai network.",
+   "source": {
+    "repo": "searxng/searxng",
+    "path": "docker.io/searxng/searxng"
+   }
+  },
+  {
+   "id": "opentakeoff",
+   "title": "OpenTakeoff",
+   "tagline": "Measure quantities on construction drawings (PDF takeoff)",
+   "description": "Open-source PDF takeoff for construction and finishes: calibrate a sheet's scale, measure areas, lengths and counts, sweep symbols, and export quantities with full provenance. Runs entirely in the browser — your plans never leave your device.",
+   "category": "Productivity",
+   "developer": "Kentucky AI",
+   "icon": "opentakeoff",
+   "main": "opentakeoff",
+   "web": {
+    "port": 80,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "opentakeoff": {
+      "image": "nginx:1.27-alpine",
+      "restart": "unless-stopped",
+      "ports": [
+       {
+        "target": 80,
+        "published": "80",
+        "protocol": "tcp"
+       }
+      ],
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/src/web/dist",
+        "target": "/usr/share/nginx/html",
+        "read_only": true
+       },
+       {
+        "type": "bind",
+        "source": "$APP_DATA/nginx.conf",
+        "target": "/etc/nginx/conf.d/default.conf",
+        "read_only": true
+       }
+      ]
+     }
+    }
+   },
+   "tips": "Built from source on the server (update with /srv/data/apps/opentakeoff/update.sh). AGPL-3.0.",
+   "source": {
+    "repo": "Kentucky-ai/opentakeoff",
+    "path": "web/ (built locally)"
+   }
+  },
+  {
+   "id": "libreoffice-writer",
+   "title": "LibreOffice Writer",
+   "tagline": "Documents (Word files)",
+   "description": "LibreOffice Writer on its own, running on the server: Write letters, reports and contracts; opens and saves Word (.docx) files. Your library is in Files.",
+   "category": "Office",
+   "developer": "The Document Foundation / LinuxServer.io",
+   "icon": "libreoffice-writer",
+   "iconUrl": "https://raw.githubusercontent.com/LibreOffice/core/master/sysui/desktop/icons/hicolor/256x256/apps/writer.png",
+   "main": "libreoffice-writer",
+   "web": {
+    "port": 3000,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "libreoffice-writer": {
+      "image": "lscr.io/linuxserver/libreoffice:25.8.7.3-r0-ls5",
+      "restart": "unless-stopped",
+      "shm_size": "1gb",
+      "ports": [
+       {
+        "target": 3000,
+        "published": "3000",
+        "protocol": "tcp"
+       }
+      ],
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/config",
+        "target": "/config"
+       },
+       {
+        "type": "bind",
+        "source": "$DATA_ROOT/files",
+        "target": "/config/Files"
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/_desktop/libreoffice/autostart-writer",
+        "target": "/defaults/autostart_wayland",
+        "read_only": true
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/_desktop/libreoffice/labwc.xml",
+        "target": "/defaults/labwc.xml",
+        "read_only": true
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/_desktop/libreoffice/writer.png",
+        "target": "/usr/share/selkies/www/icon.png",
+        "read_only": true
+       }
+      ],
+      "environment": {
+       "PUID": "1000",
+       "PGID": "1000",
+       "TZ": "Asia/Dubai",
+       "TITLE": "LibreOffice Writer",
+       "RESTART_APP": "true",
+       "SELKIES_DESKTOP": "false"
+      }
+     }
+    }
+   },
+   "tips": "Opens straight into Writer, full screen, with no desktop around it. Your library is at Files (/config/Files) inside the app. Reachable only on your tailnet.",
+   "source": {
+    "repo": "linuxserver/docker-libreoffice",
+    "path": "lscr.io/linuxserver/libreoffice:25.8.7.3-r0-ls5 (one app per container)"
+   }
+  },
+  {
+   "id": "libreoffice-calc",
+   "title": "LibreOffice Calc",
+   "tagline": "Spreadsheets (Excel files)",
+   "description": "LibreOffice Calc on its own, running on the server: Spreadsheets with formulas and charts; opens and saves Excel (.xlsx) files. Your library is in Files.",
+   "category": "Office",
+   "developer": "The Document Foundation / LinuxServer.io",
+   "icon": "libreoffice-calc",
+   "iconUrl": "https://raw.githubusercontent.com/LibreOffice/core/master/sysui/desktop/icons/hicolor/256x256/apps/calc.png",
+   "main": "libreoffice-calc",
+   "web": {
+    "port": 3000,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "libreoffice-calc": {
+      "image": "lscr.io/linuxserver/libreoffice:25.8.7.3-r0-ls5",
+      "restart": "unless-stopped",
+      "shm_size": "1gb",
+      "ports": [
+       {
+        "target": 3000,
+        "published": "3000",
+        "protocol": "tcp"
+       }
+      ],
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/config",
+        "target": "/config"
+       },
+       {
+        "type": "bind",
+        "source": "$DATA_ROOT/files",
+        "target": "/config/Files"
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/_desktop/libreoffice/autostart-calc",
+        "target": "/defaults/autostart_wayland",
+        "read_only": true
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/_desktop/libreoffice/labwc.xml",
+        "target": "/defaults/labwc.xml",
+        "read_only": true
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/_desktop/libreoffice/calc.png",
+        "target": "/usr/share/selkies/www/icon.png",
+        "read_only": true
+       }
+      ],
+      "environment": {
+       "PUID": "1000",
+       "PGID": "1000",
+       "TZ": "Asia/Dubai",
+       "TITLE": "LibreOffice Calc",
+       "RESTART_APP": "true",
+       "SELKIES_DESKTOP": "false"
+      }
+     }
+    }
+   },
+   "tips": "Opens straight into Calc, full screen, with no desktop around it. Your library is at Files (/config/Files) inside the app. Reachable only on your tailnet.",
+   "source": {
+    "repo": "linuxserver/docker-libreoffice",
+    "path": "lscr.io/linuxserver/libreoffice:25.8.7.3-r0-ls5 (one app per container)"
+   }
+  },
+  {
+   "id": "libreoffice-impress",
+   "title": "LibreOffice Impress",
+   "tagline": "Presentations (PowerPoint files)",
+   "description": "LibreOffice Impress on its own, running on the server: Slide shows; opens and saves PowerPoint (.pptx) files. Your library is in Files.",
+   "category": "Office",
+   "developer": "The Document Foundation / LinuxServer.io",
+   "icon": "libreoffice-impress",
+   "iconUrl": "https://raw.githubusercontent.com/LibreOffice/core/master/sysui/desktop/icons/hicolor/256x256/apps/impress.png",
+   "main": "libreoffice-impress",
+   "web": {
+    "port": 3000,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "libreoffice-impress": {
+      "image": "lscr.io/linuxserver/libreoffice:25.8.7.3-r0-ls5",
+      "restart": "unless-stopped",
+      "shm_size": "1gb",
+      "ports": [
+       {
+        "target": 3000,
+        "published": "3000",
+        "protocol": "tcp"
+       }
+      ],
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/config",
+        "target": "/config"
+       },
+       {
+        "type": "bind",
+        "source": "$DATA_ROOT/files",
+        "target": "/config/Files"
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/_desktop/libreoffice/autostart-impress",
+        "target": "/defaults/autostart_wayland",
+        "read_only": true
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/_desktop/libreoffice/labwc.xml",
+        "target": "/defaults/labwc.xml",
+        "read_only": true
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/_desktop/libreoffice/impress.png",
+        "target": "/usr/share/selkies/www/icon.png",
+        "read_only": true
+       }
+      ],
+      "environment": {
+       "PUID": "1000",
+       "PGID": "1000",
+       "TZ": "Asia/Dubai",
+       "TITLE": "LibreOffice Impress",
+       "RESTART_APP": "true",
+       "SELKIES_DESKTOP": "false"
+      }
+     }
+    }
+   },
+   "tips": "Opens straight into Impress, full screen, with no desktop around it. Your library is at Files (/config/Files) inside the app. Reachable only on your tailnet.",
+   "source": {
+    "repo": "linuxserver/docker-libreoffice",
+    "path": "lscr.io/linuxserver/libreoffice:25.8.7.3-r0-ls5 (one app per container)"
+   }
+  },
+  {
+   "id": "libreoffice-draw",
+   "title": "LibreOffice Draw",
+   "tagline": "Drawings, diagrams and PDF editing",
+   "description": "LibreOffice Draw on its own, running on the server: Diagrams, flowcharts and simple PDF edits. Your library is in Files.",
+   "category": "Office",
+   "developer": "The Document Foundation / LinuxServer.io",
+   "icon": "libreoffice-draw",
+   "iconUrl": "https://raw.githubusercontent.com/LibreOffice/core/master/sysui/desktop/icons/hicolor/256x256/apps/draw.png",
+   "main": "libreoffice-draw",
+   "web": {
+    "port": 3000,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "libreoffice-draw": {
+      "image": "lscr.io/linuxserver/libreoffice:25.8.7.3-r0-ls5",
+      "restart": "unless-stopped",
+      "shm_size": "1gb",
+      "ports": [
+       {
+        "target": 3000,
+        "published": "3000",
+        "protocol": "tcp"
+       }
+      ],
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/config",
+        "target": "/config"
+       },
+       {
+        "type": "bind",
+        "source": "$DATA_ROOT/files",
+        "target": "/config/Files"
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/_desktop/libreoffice/autostart-draw",
+        "target": "/defaults/autostart_wayland",
+        "read_only": true
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/_desktop/libreoffice/labwc.xml",
+        "target": "/defaults/labwc.xml",
+        "read_only": true
+       },
+       {
+        "type": "bind",
+        "source": "$CRAFT_ROOT/_desktop/libreoffice/draw.png",
+        "target": "/usr/share/selkies/www/icon.png",
+        "read_only": true
+       }
+      ],
+      "environment": {
+       "PUID": "1000",
+       "PGID": "1000",
+       "TZ": "Asia/Dubai",
+       "TITLE": "LibreOffice Draw",
+       "RESTART_APP": "true",
+       "SELKIES_DESKTOP": "false"
+      }
+     }
+    }
+   },
+   "tips": "Opens straight into Draw, full screen, with no desktop around it. Your library is at Files (/config/Files) inside the app. Reachable only on your tailnet.",
+   "source": {
+    "repo": "linuxserver/docker-libreoffice",
+    "path": "lscr.io/linuxserver/libreoffice:25.8.7.3-r0-ls5 (one app per container)"
+   }
+  },
+  {
+   "id": "qbittorrent",
+   "title": "qBittorrent",
+   "tagline": "P2P bittorrent download",
+   "description": "**Elevate Your Home Media Experience**. qBittorrent transforms your home media setup with a polished interface reminiscent of µTorrent, minus the ads. Unlike traditional download tools, it offers a streamlined, efficient, and ad-free experience. This makes it a perfect fit for those seeking a hassle-free way to manage and enjoy their media collections at home.\n\n**Feature-Rich and User-Friendly**. With qBittorrent, you gain access to a well-integrated and extensible search engine, allowing simultaneous searches across multiple torrent sites, and category-specific searches for books, music, and software. Its support for RSS feeds with advanced filters, magnet links, encrypted connections, and more, ensures you have complete control over your downloads. Available on all major platforms and in around 70 languages, qBittorrent is both versatile and accessible.\n\n**Seamless Integration with Private Clouds like Zima**. Deploying qBittorrent on private cloud devices such as Zima offers unparalleled convenience. Enjoy virtually unlimited storage, enhanced privacy for your data, and local network speeds that make downloading and streaming effortless. This setup ensures that your media library is always at your fingertips, securely and swiftly.",
+   "category": "Media",
+   "developer": "qBittorrent",
+   "icon": "qbittorrent",
+   "iconUrl": "https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@0909364b800950030e71ea82355a5969a1c08b39/Apps/qBittorrent/icon.svg",
+   "main": "qbittorrent",
+   "web": {
+    "port": 8080,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "qbittorrent": {
+      "environment": {
+       "PGID": "$PGID",
+       "PUID": "$PUID",
+       "TZ": "$TZ",
+       "UMASK": "002"
+      },
+      "image": "ghcr.io/hotio/qbittorrent:release-5.0.4",
+      "deploy": {
+       "resources": {
+        "reservations": {
+         "memory": "256M"
+        }
+       }
+      },
+      "network_mode": "bridge",
+      "ports": [
+       {
+        "target": 8080,
+        "published": "8181",
+        "protocol": "tcp"
+       }
+      ],
+      "restart": "unless-stopped",
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/config",
+        "target": "/config"
+       },
+       {
+        "type": "bind",
+        "source": "$DATA_ROOT/files/Downloads",
+        "target": "/downloads"
+       }
+      ]
+     }
+    }
+   },
+   "tips": "Finished torrents land in Files → Downloads → Torrents. MinisManager watches it and tells you on Telegram when a download is done; send a magnet link to the bot to start one.",
+   "source": {
+    "repo": "IceWhaleTech/CasaOS-AppStore",
+    "commit": "0909364b800950030e71ea82355a5969a1c08b39",
+    "path": "Apps/qBittorrent"
+   }
+  },
+  {
+   "id": "jellyfin",
+   "title": "Jellyfin",
+   "tagline": "The personal Media System",
+   "description": "Jellyfin stands out among media server applications for its fully open-source, free, and privacy-focused design. Unlike Emby and Plex, Jellyfin delivers robust media management, real-time transcoding, and granular multi-user permissions without subscription costs, operating independently of cloud services to ensure full user control over data. Its community-driven development and efficient resource usage enable smooth performance on low-end devices, making it the go-to choice for privacy-conscious and budget-savvy users.\n\nPicture your movies, TV shows, and music at your fingertips, accessible on any device. Jellyfin transforms your media collection into a personalized entertainment hub, surpassing traditional photo albums with a seamless browsing and playback experience.\nJellyfin offers high-quality streaming, automatic metadata fetching, and personalized recommendations, all at no cost. It supports multiple users, each with their own media library, catering to the diverse needs of families or teams.\nDeploying Jellyfin on private cloud devices like Zima provides near-unlimited storage, smooth streaming, and secure multi-device access. For NAS enthusiasts or anyone looking to elevate their home media setup, Jellyfin is the perfect solution.",
+   "category": "Media",
+   "developer": "Jellyfin",
+   "icon": "jellyfin",
+   "iconUrl": "https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@0909364b800950030e71ea82355a5969a1c08b39/Apps/Jellyfin/icon.svg",
+   "main": "jellyfin",
+   "web": {
+    "port": 8096,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "jellyfin": {
+      "devices": [
+       "/dev/dri:/dev/dri"
+      ],
+      "environment": {
+       "PGID": "$PGID",
+       "PUID": "$PUID",
+       "TZ": "$TZ"
+      },
+      "image": "linuxserver/jellyfin:10.11.10",
+      "deploy": {
+       "resources": {
+        "reservations": {
+         "memory": "256M"
+        }
+       }
+      },
+      "network_mode": "bridge",
+      "ports": [
+       {
+        "target": 8096,
+        "published": "8096",
+        "protocol": "tcp"
+       }
+      ],
+      "restart": "unless-stopped",
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/config",
+        "target": "/config"
+       },
+       {
+        "type": "bind",
+        "source": "$DATA_ROOT/files/Videos",
+        "target": "/media/Videos",
+        "read_only": true
+       },
+       {
+        "type": "bind",
+        "source": "$DATA_ROOT/files/Downloads/Torrents",
+        "target": "/media/Torrents",
+        "read_only": true
+       },
+       {
+        "type": "bind",
+        "source": "$DATA_ROOT/files/Audio",
+        "target": "/media/Music",
+        "read_only": true
+       }
+      ]
+     }
+    }
+   },
+   "tips": "Libraries: Files → Videos, Downloads → Torrents (finished torrents show up here) and Audio. Uses the GPU for transcoding.",
+   "source": {
+    "repo": "IceWhaleTech/CasaOS-AppStore",
+    "commit": "0909364b800950030e71ea82355a5969a1c08b39",
+    "path": "Apps/Jellyfin"
+   }
+  },
+  {
+   "id": "immich",
+   "title": "Immich",
+   "tagline": "Self-hosted media management solution",
+   "description": "Immich: Revolutionizing Your Home Media Experience\n\nImmich is here to transform the way you manage and enjoy your media files across your home TV, smartphones, and other devices. Unlike traditional photo albums or mainstream cloud services, immich offers a seamless and modern platform for organizing, sharing, and accessing your photos and videos. Imagine effortlessly backing up your precious moments from your mobile devices and viewing them instantly on your TV or sharing them with family members—immich makes it all possible.\n\nImmich stands out with its automatic backup from mobile devices, a sleek web-based interface for easy media browsing, and advanced features like face recognition and object detection. You can organize your media by location, enjoy 4K video playback, and even manage RAW photos. Plus, with multi-user support, sharing memories with friends and family is a breeze. The best part? Immich offers these powerful features for low cost, ensuring you get a premium experience without breaking the bank.\n\nDeploying immich on a private cloud device like Zima brings unparalleled convenience. Enjoy unlimited storage capacity, blazing-fast local network speeds, and easy multi-device access. With immich on your Zima private cloud, your media is always at your fingertips, safe and secure in your home.",
+   "category": "Media",
+   "developer": "alextran1502",
+   "icon": "immich",
+   "iconUrl": "https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@0909364b800950030e71ea82355a5969a1c08b39/Apps/Immich/icon.svg",
+   "main": "immich-server",
+   "web": {
+    "port": 2283,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "immich-server": {
+      "deploy": {
+       "resources": {
+        "reservations": {
+         "memory": "1024M"
+        }
+       }
+      },
+      "container_name": "immich-server",
+      "hostname": "immich-server",
+      "image": "ghcr.io/immich-app/immich-server:v3.3.1",
+      "volumes": [
+       "$APP_DATA/library:/data",
+       "$DATA_ROOT/files/Images:/mnt/external/Images:ro",
+       "/etc/localtime:/etc/localtime:ro"
+      ],
+      "environment": {
+       "DB_DATABASE_NAME": "immich",
+       "DB_PASSWORD": "postgres",
+       "DB_USERNAME": "postgres"
+      },
+      "ports": [
+       "2283:2283"
+      ],
+      "depends_on": [
+       "redis",
+       "database"
+      ],
+      "restart": "unless-stopped",
+      "healthcheck": {
+       "disable": false
+      },
+      "networks": [
+       "immich"
+      ]
+     },
+     "immich-machine-learning": {
+      "container_name": "immich-machine-learning",
+      "hostname": "immich-machine-learning",
+      "image": "ghcr.io/immich-app/immich-machine-learning:v3.3.1",
+      "environment": {
+       "DB_DATABASE_NAME": "immich",
+       "DB_PASSWORD": "postgres",
+       "DB_USERNAME": "postgres"
+      },
+      "restart": "unless-stopped",
+      "volumes": [
+       "$APP_DATA/model-cache:/cache"
+      ],
+      "healthcheck": {
+       "disable": false
+      },
+      "networks": [
+       "immich"
+      ]
+     },
+     "redis": {
+      "container_name": "immich-redis",
+      "hostname": "immich-redis",
+      "image": "docker.io/valkey/valkey:9@sha256:c123e3715db63d06d4ad6964884037aa0d5d4d703939b9929954112889708e1d",
+      "healthcheck": {
+       "test": "redis-cli ping || exit 1"
+      },
+      "restart": "unless-stopped",
+      "networks": [
+       "immich"
+      ]
+     },
+     "database": {
+      "container_name": "immich-postgres",
+      "hostname": "immich-postgres",
+      "image": "ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23",
+      "environment": {
+       "POSTGRES_PASSWORD": "postgres",
+       "POSTGRES_USER": "postgres",
+       "POSTGRES_DB": "immich",
+       "POSTGRES_INITDB_ARGS": "--data-checksums"
+      },
+      "volumes": [
+       "$APP_DATA/pgdata:/var/lib/postgresql/data"
+      ],
+      "restart": "unless-stopped",
+      "networks": [
+       "immich"
+      ]
+     }
+    },
+    "networks": {
+     "immich": {
+      "driver": "bridge"
+     }
+    }
+   },
+   "tips": "Phone backups are stored in the app folder on the server; Files → Images is added as an external library (read-only).",
+   "source": {
+    "repo": "IceWhaleTech/CasaOS-AppStore",
+    "commit": "0909364b800950030e71ea82355a5969a1c08b39",
+    "path": "Apps/Immich"
+   }
+  },
+  {
+   "id": "audiobookshelf",
+   "title": "Audiobookshelf",
+   "tagline": "Audiobookshelf is a self-hosted audiobook and podcast server.",
+   "description": "Audiobookshelf is a self-hosted media server designed for managing and streaming audiobooks, podcasts, and e-books, offering a secure and flexible solution for personal media libraries. Its lightweight architecture and intuitive Web interface (available as a Progressive Web App, PWA) enable seamless access from any browser, while beta Android and iOS apps support offline listening, catering to privacy-focused media enthusiasts.\n\nThe app supports on-the-fly streaming of all audio formats and provides robust management tools, including automatic metadata and cover art fetching from multiple sources, bulk drag-and-drop uploads for books and podcasts, and chapter editing with lookup via the Audnexus API. Users can search and subscribe to podcasts with auto-downloading episodes or manage content via open RSS feeds. It supports multi-user access with custom permissions, ensuring individual playback progress syncs across devices. Additionally, it offers audio tools (like merging files into m4b or embedding metadata) and experimental e-book support (epub, pdf, cbr, cbz), with the ability to send e-books to devices like Kindle.\n\nIt automatically detects library updates, eliminating manual rescans, and includes daily automated backups to safeguard metadata. Chromecast support (on Web and Android apps) enhances streaming capabilities, while an active community provides support documentation for continuous improvements. Whether for personal collections or family sharing, the app's intuitive interface and versatile features deliver a modern media management platform, meeting diverse needs.\n\n**Key Features:**\n- Multi-user support w/ custom permissions\n- Keeps progress per user and syncs across devices\n- Lookup and apply metadata and cover art from several providers\n- Audiobook chapter editor w/ chapter lookup\n- Audiobook tools: Embed metadata in audio files & merge multiple audio files to a single m4b\n- Search and add podcasts to download episodes w/ auto-download\n- Open RSS feed",
+   "category": "Media",
+   "developer": "advplyr",
+   "icon": "audiobookshelf",
+   "iconUrl": "https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@0909364b800950030e71ea82355a5969a1c08b39/Apps/Audiobookshelf/icon.svg",
+   "main": "audiobookshelf",
+   "web": {
+    "port": 80,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "audiobookshelf": {
+      "image": "ghcr.io/advplyr/audiobookshelf:2.35.0",
+      "container_name": "audiobookshelf",
+      "deploy": {
+       "resources": {
+        "reservations": {
+         "memory": "64M"
+        }
+       }
+      },
+      "restart": "unless-stopped",
+      "volumes": [
+       "$DATA_ROOT/files/Audio/Audiobooks:/audiobooks",
+       "$DATA_ROOT/files/Audio/Podcasts:/podcasts",
+       "$APP_DATA/config:/config",
+       "$APP_DATA/metadata:/metadata"
+      ],
+      "ports": [
+       "13378:80"
+      ]
+     }
+    }
+   },
+   "tips": "Books in Files → Audio → Audiobooks, podcasts in Files → Audio → Podcasts.",
+   "source": {
+    "repo": "IceWhaleTech/CasaOS-AppStore",
+    "commit": "0909364b800950030e71ea82355a5969a1c08b39",
+    "path": "Apps/Audiobookshelf"
+   }
+  },
+  {
+   "id": "paperless",
+   "title": "Paperless-ngx",
+   "tagline": "Scan, read and search all your papers",
+   "description": "Invoices, LPOs, contracts and receipts: drop them in Files → Documents → Paperless Inbox (or send them to the Telegram bot) and Paperless reads them (Arabic and English OCR), tags them and makes them searchable. Word, Excel and email files work too.",
+   "category": "Productivity",
+   "developer": "Paperless-ngx contributors",
+   "icon": "paperless-ngx",
+   "main": "webserver",
+   "web": {
+    "port": 8000,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "broker": {
+      "image": "docker.io/valkey/valkey:9-alpine",
+      "restart": "unless-stopped",
+      "volumes": [
+       "$APP_DATA/redis:/data"
+      ]
+     },
+     "webserver": {
+      "image": "ghcr.io/paperless-ngx/paperless-ngx:3.3.0",
+      "restart": "unless-stopped",
+      "depends_on": [
+       "broker",
+       "gotenberg",
+       "tika"
+      ],
+      "ports": [
+       {
+        "target": 8000,
+        "published": "8000",
+        "protocol": "tcp"
+       }
+      ],
+      "volumes": [
+       "$APP_DATA/data:/usr/src/paperless/data",
+       "$APP_DATA/media:/usr/src/paperless/media",
+       "$APP_DATA/export:/usr/src/paperless/export",
+       "$DATA_ROOT/files/Documents/Paperless Inbox:/usr/src/paperless/consume"
+      ],
+      "environment": {
+       "PAPERLESS_REDIS": "redis://broker:6379",
+       "PAPERLESS_DBENGINE": "sqlite",
+       "PAPERLESS_TIKA_ENABLED": "1",
+       "PAPERLESS_TIKA_GOTENBERG_ENDPOINT": "http://gotenberg:3000",
+       "PAPERLESS_TIKA_ENDPOINT": "http://tika:9998",
+       "PAPERLESS_OCR_LANGUAGE": "ara+eng",
+       "PAPERLESS_OCR_LANGUAGES": "ara",
+       "PAPERLESS_TIME_ZONE": "$TZ",
+       "USERMAP_UID": "$PUID",
+       "USERMAP_GID": "$PGID",
+       "PAPERLESS_ADMIN_USER": "anas",
+       "PAPERLESS_ADMIN_PASSWORD": "change-me",
+       "PAPERLESS_SECRET_KEY": "change-me-too",
+       "PAPERLESS_CONSUMER_POLLING": "10",
+       "PAPERLESS_CONSUMER_RECURSIVE": "true",
+       "PAPERLESS_FILENAME_FORMAT": "{{ created_year }}/{{ correspondent }}/{{ title }}",
+       "PAPERLESS_PROXY_SSL_HEADER": "[\"HTTP_X_FORWARDED_PROTO\", \"https\"]",
+       "PAPERLESS_USE_X_FORWARD_HOST": "true"
+      }
+     },
+     "gotenberg": {
+      "image": "docker.io/gotenberg/gotenberg:8.37.0",
+      "restart": "unless-stopped",
+      "command": [
+       "gotenberg",
+       "--chromium-disable-javascript=true",
+       "--chromium-allow-list=file:///tmp/.*"
+      ]
+     },
+     "tika": {
+      "image": "docker.io/apache/tika:3.3.1.0",
+      "restart": "unless-stopped"
+     }
+    }
+   },
+   "tips": "Drop files in Files → Documents → Paperless Inbox; they are read and filed within a minute. Login user: anas (password in MinisManager var/apps-credentials.json).",
+   "source": {
+    "repo": "paperless-ngx/paperless-ngx",
+    "path": "docker/compose/docker-compose.sqlite-tika.yml (v3.3.0)"
+   }
+  },
+  {
+   "id": "vaultwarden",
+   "title": "Vaultwarden",
+   "tagline": "A self-hosted Bitwarden server",
+   "description": "Alternative implementation of the Bitwarden server API written in Rust and compatible with upstream Bitwarden clients*, perfect for self-hosted deployment where running the official resource-heavy service might not be ideal.",
+   "category": "Productivity",
+   "developer": "Daniel García",
+   "icon": "vaultwarden",
+   "iconUrl": "https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@0909364b800950030e71ea82355a5969a1c08b39/Apps/Vaultwarden/icon.svg",
+   "main": "vaultwarden",
+   "web": {
+    "port": 80,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "vaultwarden": {
+      "image": "vaultwarden/server:1.36.0",
+      "deploy": {
+       "resources": {
+        "reservations": {
+         "memory": "256M"
+        }
+       }
+      },
+      "network_mode": "bridge",
+      "ports": [
+       {
+        "target": 80,
+        "published": "10380",
+        "protocol": "tcp"
+       }
+      ],
+      "restart": "unless-stopped",
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/data",
+        "target": "/data"
+       }
+      ],
+      "environment": {
+       "DOMAIN": "$APP_URL",
+       "SIGNUPS_ALLOWED": "false",
+       "INVITATIONS_ALLOWED": "false",
+       "SHOW_PASSWORD_HINT": "false",
+       "TZ": "$TZ"
+      }
+     }
+    }
+   },
+   "tips": "Open it, create your account, then ask to close sign-ups. Works with the Bitwarden apps and browser extension: use this app's address as the server URL",
+   "source": {
+    "repo": "IceWhaleTech/CasaOS-AppStore",
+    "commit": "0909364b800950030e71ea82355a5969a1c08b39",
+    "path": "Apps/Vaultwarden"
+   }
+  },
+  {
+   "id": "uptimekuma",
+   "title": "Uptime Kuma",
+   "tagline": "A fancy monitoring tool",
+   "description": "Uptime Kuma is a free, easy-to-use self-hosted monitoring tool designed for real-time tracking of network services and infrastructure, offering a modern interface and robust functionality. It provides an intuitive Web dashboard for managing services, ideal for individual developers, home lab users, and small teams.\n\nThe tool's core features include comprehensive monitoring and diverse notification channels. It monitors HTTP/HTTPS, TCP ports, DNS records, databases, Ping, and Steam game servers, with interactive Ping charts visually displaying response times and status. Users can receive real-time alerts via Telegram, Discord, Slack, Email (SMTP), and over 95 other notification services. SSL certificate monitoring checks certificate validity and expiration, aiding timely renewals.\n\nIt supports 20-second monitoring intervals for rapid downtime detection and offers multiple status pages to share real-time service status with customers. Proxy support enables remote access via Cloudflare, Nginx, or similar services, enhancing flexibility. Two-factor authentication (2FA) and API keys bolster security, ensuring full user control over local data. The tool delivers an efficient monitoring solution with intuitive operation and community support.\n\n**Key Features:**\n- Monitor HTTP/HTTPS, TCP, DNS, databases, and other services\n- Notifications via Telegram, Discord, Slack, and over 95 other channels\n- Interactive Ping charts displaying response times and status\n- SSL certificate monitoring for validity and expiration\n- 20-second monitoring intervals for rapid downtime detection\n- Multiple status pages for sharing service status\n- Proxy support compatible with Cloudflare, Nginx, and more\n- Two-factor authentication (2FA) and API keys for enhanced security\n\n**Learn More:**\n- [Uptime Kuma Official Website](https://uptimekuma.org)\n- [Uptime Kuma GitHub Repository](https://github.com/louislam/uptime-kuma)",
+   "category": "Networking",
+   "developer": "Louis Lam",
+   "icon": "uptime-kuma",
+   "iconUrl": "https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@0909364b800950030e71ea82355a5969a1c08b39/Apps/UptimeKuma/icon.svg",
+   "main": "uptimekuma",
+   "web": {
+    "port": 3001,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "uptimekuma": {
+      "image": "louislam/uptime-kuma:2.4.0",
+      "deploy": {
+       "resources": {
+        "reservations": {
+         "memory": "128M"
+        }
+       }
+      },
+      "network_mode": "host",
+      "ports": [
+       {
+        "target": 3001,
+        "published": "3001",
+        "protocol": "tcp"
+       }
+      ],
+      "restart": "unless-stopped",
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/data",
+        "target": "/app/data"
+       }
+      ],
+      "environment": {
+       "UPTIME_KUMA_HOST": "127.0.0.1",
+       "UPTIME_KUMA_PORT": "20021"
+      }
+     }
+    }
+   },
+   "tips": "Watches the server's services and apps; alerts go to Telegram through MinisManager.",
+   "source": {
+    "repo": "IceWhaleTech/CasaOS-AppStore",
+    "commit": "0909364b800950030e71ea82355a5969a1c08b39",
+    "path": "Apps/UptimeKuma"
+   }
+  },
+  {
+   "id": "adguard-home",
+   "title": "AdGuard Home",
+   "tagline": "Network-wide ad and tracker blocking",
+   "description": "Difference from Traditional Ad Blockers. Unlike traditional ad-blocking plugins that work only on individual devices, AdGuard Home offers a network-wide solution. By setting it up, you can block ads and trackers across all your home devices without needing to install any additional software on each device. This means comprehensive protection with minimal effort.\n\nHow AdGuard Home Works and How to Use It. AdGuard Home functions as a DNS server that reroutes tracking domains to a \"black hole,\" effectively preventing your devices from connecting to these servers. This blocks ads and trackers not only on your computer but also on your smartphone and smart home devices. To start using AdGuard Home, deploy it on your device, then change the DNS address assigned by DHCP on your router to the IP address of your AdGuard Home server.\n\nBenefits of Deploying AdGuard Home on Zima Private Cloud. Deploying AdGuard Home on a Zima device simplifies network-wide ad and tracker blocking, providing a seamless and secure browsing experience for all your home devices. With Zima, you gain the flexibility to monitor network activity and create custom filtering rules tailored to your needs.",
+   "category": "Networking",
+   "developer": "AdguardTeam",
+   "icon": "adguard-home",
+   "iconUrl": "https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@0909364b800950030e71ea82355a5969a1c08b39/Apps/AdGuardHome/icon.svg",
+   "main": "adguard-home",
+   "web": {
+    "port": 3000,
+    "path": "/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "adguard-home": {
+      "image": "adguard/adguardhome:v0.107.79",
+      "deploy": {
+       "resources": {
+        "reservations": {
+         "memory": "64M"
+        }
+       }
+      },
+      "network_mode": "bridge",
+      "ports": [
+       {
+        "target": 3000,
+        "published": "3000",
+        "protocol": "tcp"
+       }
+      ],
+      "restart": "unless-stopped",
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "$APP_DATA/work",
+        "target": "/opt/adguardhome/work"
+       },
+       {
+        "type": "bind",
+        "source": "$APP_DATA/conf",
+        "target": "/opt/adguardhome/conf"
+       }
+      ]
+     }
+    }
+   },
+   "tips": "DNS on 192.168.1.20 and 100.64.0.5 (port 53). To use it: Tailscale admin → DNS → add nameserver 100.64.0.5, or set it as DNS in the router.",
+   "source": {
+    "repo": "IceWhaleTech/CasaOS-AppStore",
+    "commit": "0909364b800950030e71ea82355a5969a1c08b39",
+    "path": "Apps/AdGuardHome"
+   }
+  },
+  {
+   "id": "scrutiny",
+   "title": "Scrutiny",
+   "tagline": "Hard drive health (S.M.A.R.T.) dashboard",
+   "description": "Scrutiny watches the S.M.A.R.T. data of every disk and judges each attribute against real-world failure rates from Backblaze's fleet, instead of only the vendor's thresholds — so it tells a dying drive from a false alarm. Shows temperature history, attribute trends and alerts when a disk starts failing.\n\n- [GitHub](https://github.com/AnalogJ/scrutiny) (MIT)",
+   "category": "Utilities",
+   "developer": "AnalogJ",
+   "icon": "scrutiny",
+   "iconUrl": "https://raw.githubusercontent.com/AnalogJ/scrutiny/v0.9.5/webapp/frontend/src/assets/images/logo/scrutiny-logo-dark.png",
+   "main": "scrutiny",
+   "web": {
+    "port": 8080,
+    "path": "/web/",
+    "scheme": "http"
+   },
+   "compose": {
+    "services": {
+     "scrutiny": {
+      "image": "ghcr.io/analogj/scrutiny:v0.9.5-omnibus",
+      "cap_add": [
+       "SYS_RAWIO",
+       "SYS_ADMIN"
+      ],
+      "devices": [
+       "/dev/sda",
+       "/dev/sdb",
+       "/dev/sdc",
+       "/dev/sdd",
+       "/dev/sde",
+       "/dev/sdf",
+       "/dev/nvme0",
+       "/dev/nvme1"
+      ],
+      "environment": {
+       "TZ": "$TZ",
+       "COLLECTOR_CRON_SCHEDULE": "0 */6 * * *"
+      },
+      "deploy": {
+       "resources": {
+        "reservations": {
+         "memory": "128M"
+        }
+       }
+      },
+      "network_mode": "bridge",
+      "ports": [
+       {
+        "target": 8080,
+        "published": "8080",
+        "protocol": "tcp"
+       }
+      ],
+      "restart": "unless-stopped",
+      "volumes": [
+       {
+        "type": "bind",
+        "source": "/run/udev",
+        "target": "/run/udev",
+        "read_only": true
+       },
+       {
+        "type": "bind",
+        "source": "$APP_DATA/config",
+        "target": "/opt/scrutiny/config"
+       },
+       {
+        "type": "bind",
+        "source": "$APP_DATA/influxdb",
+        "target": "/opt/scrutiny/influxdb"
+       }
+      ]
+     }
+    }
+   },
+   "tips": "Checks every disk every 6 hours; a failing disk sends a Telegram alert through MinisManager.",
+   "source": {
+    "repo": "AnalogJ/scrutiny",
+    "commit": "v0.9.5",
+    "path": "docker/example.omnibus.docker-compose.yml"
+   }
+  }
+ ]
+}

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MinisManager's "M" (a rising/falling pulse), device base and status light, from web/public/icons/icon.svg. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="512" android:viewportHeight="512">
+    <group android:scaleX="0.62" android:scaleY="0.62" android:pivotX="256" android:pivotY="256">
+        <path android:pathData="M138,352V178l118,134 118,-134v174" android:strokeColor="#FFFFFF" android:strokeWidth="46" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:fillColor="#FFFFFF" android:fillAlpha="0.55" android:pathData="M159,396h194a9,9 0 0 1 0,18h-194a9,9 0 0 1 0,-18z" />
+        <path android:fillColor="#3EE07A" android:strokeColor="#FFFFFF" android:strokeWidth="5" android:pathData="M392,126m-21,0a21,21 0 1 0 42,0a21,21 0 1 0 -42,0" />
+    </group>
+</vector>

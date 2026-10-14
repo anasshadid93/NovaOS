@@ -1,0 +1,199 @@
+#!/bin/bash
+# manar-helper — the only command Manar may run as root.
+# Installed by deploy/install.sh (which fills in @DATA_ROOT@/@UID@/@GID@) as root:root 0755 at
+# /usr/local/sbin/manar-helper and allowed via
+# /etc/sudoers.d/manar for the MinisManager user. Every argument is validated here; anything
+# not on the allowlist is refused.
+set -euo pipefail
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+umask 077
+
+die() { echo "manar-helper: $*" >&2; exit 64; }
+log() { logger -t manar-helper -- "uid=${SUDO_UID:-?} $*" || true; }
+
+[[ $# -ge 1 ]] || die "usage: manar-helper <command> [args]"
+cmd=$1; shift
+
+# Units Manar must never stop or restart from the phone.
+PROTECTED_UNITS_RE='^(ssh|sshd|tailscaled|systemd-.*|dbus|dbus-broker|polkit|manar)\.service$'
+
+case "$cmd" in
+  reboot)
+    [[ $# -eq 0 ]] || die "reboot takes no arguments"
+    log "reboot"
+    exec systemctl reboot
+    ;;
+  poweroff)
+    [[ $# -eq 0 ]] || die "poweroff takes no arguments"
+    log "poweroff"
+    exec systemctl poweroff
+    ;;
+  suspend)
+    [[ $# -eq 0 ]] || die "suspend takes no arguments"
+    log "suspend"
+    exec systemctl suspend
+    ;;
+  schedule)
+    [[ $# -eq 2 ]] || die "schedule <reboot|poweroff> <minutes>"
+    what=$1; mins=$2
+    [[ $what =~ ^(reboot|poweroff)$ ]] || die "bad action"
+    [[ $mins =~ ^[0-9]{1,5}$ ]] && (( mins >= 1 && mins <= 10080 )) || die "minutes must be 1..10080"
+    flag=-h; [[ $what == reboot ]] && flag=-r
+    log "schedule $what in $mins min"
+    exec shutdown "$flag" "+$mins" "Scheduled from Manar"
+    ;;
+  cancel-schedule)
+    [[ $# -eq 0 ]] || die "cancel-schedule takes no arguments"
+    log "cancel-schedule"
+    exec shutdown -c
+    ;;
+  drop-caches)
+    # "Release memory": write dirty pages, then drop the page cache, dentries and inodes.
+    [[ $# -eq 0 ]] || die "drop-caches takes no arguments"
+    log "drop-caches"
+    sync
+    echo 3 > /proc/sys/vm/drop_caches
+    ;;
+  ufw-status)
+    [[ $# -eq 0 ]] || die "ufw-status takes no arguments"
+    command -v ufw >/dev/null || die "ufw not installed"
+    exec ufw status verbose
+    ;;
+  systemctl)
+    [[ $# -eq 2 ]] || die "systemctl <start|stop|restart> <unit>"
+    action=$1; unit=$2
+    [[ $action =~ ^(start|stop|restart)$ ]] || die "action not allowed"
+    [[ $unit =~ ^[A-Za-z0-9@._-]{1,120}\.(service|timer|socket)$ ]] || die "bad unit name"
+    [[ ! $unit =~ $PROTECTED_UNITS_RE ]] || die "unit is protected"
+    log "systemctl $action $unit"
+    exec systemctl --no-ask-password "$action" -- "$unit"
+    ;;
+  kill)
+    [[ $# -eq 2 ]] || die "kill <TERM|KILL|HUP> <pid>"
+    sig=$1; pid=$2
+    [[ $sig =~ ^(TERM|KILL|HUP)$ ]] || die "signal not allowed"
+    [[ $pid =~ ^[0-9]{1,9}$ ]] && (( pid > 1 )) || die "bad pid"
+    [[ -d /proc/$pid ]] || die "no such process"
+    # Refuse kernel threads (no executable) and anything in the protected units.
+    [[ -e /proc/$pid/exe ]] || die "kernel thread"
+    if grep -qE '/(ssh|sshd|tailscaled|systemd-[^/]*|dbus|dbus-broker|polkit)\.service$' "/proc/$pid/cgroup" 2>/dev/null; then
+      die "process belongs to a protected unit"
+    fi
+    comm=$(cat "/proc/$pid/comm" 2>/dev/null || echo '?')
+    log "kill -$sig $pid ($comm)"
+    exec kill -s "$sig" -- "$pid"
+    ;;
+  smartctl)
+    [[ $# -eq 1 ]] || die "smartctl <device>"
+    dev=$1
+    [[ $dev =~ ^/dev/(sd[a-z]{1,2}|nvme[0-9]{1,2}n[0-9]{1,2})$ ]] || die "bad device"
+    [[ -b $dev ]] || die "not a block device"
+    exec smartctl --json=c -x -- "$dev"
+    ;;
+  ports)
+    [[ $# -eq 0 ]] || die "ports takes no arguments"
+    # Listening sockets with owning processes (read-only).
+    exec ss -Htulpn
+    ;;
+  ts-serve)
+    # Publish/unpublish a Manar app port on the tailnet (same port, localhost target).
+    [[ $# -eq 2 ]] || die "ts-serve <port> <on|off>"
+    port=$1; state=$2
+    [[ $port =~ ^[0-9]{5}$ ]] && (( port >= 20000 && port <= 29999 )) || die "port must be 20000..29999"
+    [[ $state =~ ^(on|off)$ ]] || die "state must be on|off"
+    log "ts-serve $port $state"
+    if [[ $state == on ]]; then exec tailscale serve --bg "--https=$port" "http://127.0.0.1:$port"; fi
+    exec tailscale serve "--https=$port" off
+    ;;
+  shell)
+    # Desktop terminal: a login shell for the user who ran sudo (the MinisManager user), started as its own
+    # transient unit so it is outside manar.service's sandbox and limits. Manar only offers it
+    # after a fresh passkey/TOTP confirmation.
+    [[ $# -eq 0 ]] || die "shell takes no arguments"
+    user=${SUDO_USER:-}
+    [[ $user == "@USER@" ]] || die "shell is only for @USER@"
+    log "shell"
+    exec systemd-run --quiet --pty --collect --service-type=exec --unit="manar-term-$$" -E TERM="${TERM:-xterm-256color}" -E COLORTERM=truecolor runuser -l "$user"
+    ;;
+  apt-refresh)
+    # Refresh package lists (as its own unit: outside manar.service's read-only /usr).
+    [[ $# -eq 0 ]] || die "apt-refresh takes no arguments"
+    log "apt-refresh"
+    exec systemd-run --quiet --pipe --wait --collect --unit=manar-apt-refresh -E DEBIAN_FRONTEND=noninteractive apt-get -q update
+    ;;
+  apt-upgrade)
+    # Install all pending updates. Services are NOT restarted automatically (NEEDRESTART_MODE=l);
+    # the app reports what needs a restart or a reboot. Runs as its own unit, so it finishes
+    # even if Manar restarts meanwhile.
+    [[ $# -eq 0 ]] || die "apt-upgrade takes no arguments"
+    log "apt-upgrade"
+    exec systemd-run --quiet --pipe --wait --collect --unit=manar-apt-upgrade -E DEBIAN_FRONTEND=noninteractive -E NEEDRESTART_MODE=l \
+      apt-get -y -q -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold upgrade
+    ;;
+  mount-ext|umount-ext)
+    # Mounts must live in the host's mount namespace, not in manar.service's private
+    # one (PrivateTmp/ProtectSystem), so the rest of the system and Docker see them too.
+    if [[ $(readlink /proc/self/ns/mnt) != "$(readlink /proc/1/ns/mnt)" && -z ${MANAR_HELPER_NS:-} ]]; then
+      exec env MANAR_HELPER_NS=1 nsenter --mount=/proc/1/ns/mnt -- "$0" "$cmd" "$@"
+    fi
+    ;;&
+  mount-ext)
+    # Mount an external/secondary partition under @DATA_ROOT@/external/<name>.
+    [[ $# -eq 1 ]] || die "mount-ext <partition>"
+    dev=/dev/$1
+    [[ $1 =~ ^(sd[a-z]{1,2}[0-9]{1,3}|nvme[0-9]{1,2}n[0-9]{1,2}p[0-9]{1,3}|mmcblk[0-9]{1,2}p[0-9]{1,3})$ ]] || die "bad partition"
+    [[ -b $dev ]] || die "not a block device"
+    [[ -z $(findmnt -rno TARGET --source "$dev") ]] || die "already mounted"
+    rootdisk=$(lsblk -no PKNAME "$(findmnt -no SOURCE /)")
+    [[ $(lsblk -no PKNAME "$dev") != "$rootdisk" ]] || die "partition is on the system disk"
+    fstype=$(blkid -o value -s TYPE -- "$dev" || true)
+    case "$fstype" in
+      vfat|exfat) opts="uid=@UID@,gid=@GID@,fmask=0133,dmask=0022" ;;
+      ext4|ext3|ext2|btrfs|xfs) opts="" ;;
+      *) die "unsupported filesystem: ${fstype:-none}" ;;
+    esac
+    label=$(blkid -o value -s LABEL -- "$dev" | tr -cd 'A-Za-z0-9 ._-' | tr ' ' '_' | cut -c1-40 || true)
+    if [[ -z $label ]]; then
+      # No filesystem label: use the drive's model name (e.g. SanDisk_3.2Gen1).
+      label=$(lsblk -dno MODEL "/dev/$(lsblk -no PKNAME "$dev")" 2>/dev/null | tr -cd 'A-Za-z0-9 ._-' | sed 's/ *$//' | tr ' ' '_' | cut -c1-40 || true)
+    fi
+    name=${label:-$1}
+    base=@DATA_ROOT@/external
+    mkdir -p -m 0755 "$base"; chmod 0755 "$base"
+    target=$base/$name
+    [[ -e $target && -n $(ls -A "$target" 2>/dev/null) ]] && target=$base/${name}_$1
+    mkdir -p -m 0755 "$target"
+    log "mount-ext $dev ($fstype) -> $target"
+    exec mount -t "$fstype" -o "nosuid,nodev,noexec${opts:+,$opts}" -- "$dev" "$target"
+    ;;
+  umount-ext)
+    [[ $# -eq 1 ]] || die "umount-ext <partition>"
+    dev=/dev/$1
+    [[ $1 =~ ^(sd[a-z]{1,2}[0-9]{1,3}|nvme[0-9]{1,2}n[0-9]{1,2}p[0-9]{1,3}|mmcblk[0-9]{1,2}p[0-9]{1,3})$ ]] || die "bad partition"
+    target=$(findmnt -rno TARGET --source "$dev" | head -1)
+    [[ $target == @DATA_ROOT@/external/* ]] || die "not mounted by MinisManager"
+    log "umount-ext $dev from $target"
+    if [[ -b $dev ]]; then
+      sync
+      umount -- "$target"
+    else
+      # Drive was pulled out without ejecting: detach the stale mount.
+      umount -l -- "$target"
+    fi
+    rmdir -- "$target" 2>/dev/null || true
+    ;;
+  rm-appdata)
+    [[ $# -eq 1 ]] || die "rm-appdata <app-id>"
+    app=$1
+    [[ $app =~ ^[a-z0-9][a-z0-9-]{0,62}$ ]] || die "bad app id"
+    target=@DATA_ROOT@/apps/$app
+    [[ -d $target && ! -L $target ]] || die "no such app data"
+    real=$(realpath -e -- "$target")
+    [[ $real == "@DATA_ROOT@/apps/$app" ]] || die "path escapes @DATA_ROOT@/apps"
+    log "rm-appdata $app"
+    exec rm -rf --one-file-system -- "$real"
+    ;;
+  *)
+    die "unknown command"
+    ;;
+esac

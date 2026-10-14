@@ -1,0 +1,23 @@
+{
+  "_comment": "Copy to var/manar.json (or point MANAR_CONFIG at it). Every key is optional; environment variables MANAR_* win over this file. Paths may start with ~/.",
+  "hostname": "my-server",
+  "publicOrigin": "https://my-server.tailnet-name.ts.net:7443",
+  "rpId": "my-server.tailnet-name.ts.net",
+  "tailscaleHost": "my-server.tailnet-name.ts.net",
+  "timezone": "Europe/Berlin",
+  "brand": "MinisManager",
+  "dataRoot": "/srv/data",
+  "appsDir": "/srv/apps",
+  "mediaRoot": "/srv/data/external/BigDisk",
+  "containerPrefix": "manar-",
+  "renderNode": "/dev/dri/renderD128",
+  "reservedPorts": [],
+  "shareBase": "https://share.example.com",
+  "updateRepo": "anasshadid93/NovaOS",
+  "downloadHook": "",
+  "telegramOwner": 0,
+  "ytDlp": "yt-dlp",
+  "dwg2dxf": "dwg2dxf",
+  "backupSources": ["~/MinisManager/var", "/srv/data/apps", "/srv/data/files"],
+  "backupExcludes": ["node_modules", ".cache", "*.log"]
+}

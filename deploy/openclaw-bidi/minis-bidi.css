@@ -1,0 +1,6 @@
+/* MinisManager patch: lines follow their own direction (see minis-bidi.js). */
+:is(.chat-text, .chat-thinking) [data-minis-dir]:where(p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, dt, dd, summary) { text-align: start; }
+:is(.chat-text, .chat-thinking) :where(pre, code) { direction: ltr; unicode-bidi: isolate; text-align: left; }
+/* An item whose direction differs from its list: indent it on its own side so the bullet fits. */
+:is(.chat-text, .chat-thinking) :is(ul, ol)[dir='rtl'] > li[dir='ltr'],
+:is(.chat-text, .chat-thinking) :is(ul, ol)[dir='ltr'] > li[dir='rtl'] { margin-inline-start: var(--chat-markdown-indent, 24px); }

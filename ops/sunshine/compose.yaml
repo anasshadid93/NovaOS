@@ -1,0 +1,93 @@
+# Game streaming with Sunshine (replaces Wolf): ES-DE runs all the time on a virtual 1080p
+# screen; Moonlight on the TV connects to Sunshine and sees it instantly.
+name: manar-games
+services:
+  pulse:
+    image: ghcr.io/games-on-whales/pulseaudio:master
+    container_name: manar-games-pulse
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Dubai
+    volumes:
+      - /srv/data/apps/sunshine/run/pulse:/tmp/pulse
+
+  esde:
+    image: ghcr.io/games-on-whales/es-de:edge
+    container_name: manar-games-esde
+    restart: unless-stopped
+    network_mode: host
+    ipc: host
+    depends_on: [pulse]
+    cap_add: [NET_RAW, MKNOD, NET_ADMIN]
+    devices:
+      - /dev/dri:/dev/dri
+    device_cgroup_rules:
+      - 'c 13:* rmw'
+      - 'c 226:* rmw'
+      - 'c 244:* rmw'
+    environment:
+      - TZ=Asia/Dubai
+      - PUID=1000
+      - PGID=1000
+      - UMASK=000
+      - UNAME=retro
+      - HOME=/home/retro
+      - XDG_RUNTIME_DIR=/run/user/games
+      - PULSE_SERVER=unix:/tmp/pulse/pulse-socket
+      - RUN_SWAY=1
+      - GAMESCOPE_WIDTH=1920
+      - GAMESCOPE_HEIGHT=1080
+      - GAMESCOPE_REFRESH=60
+      - SWAY_STOP_ON_APP_EXIT=yes
+      - WLR_BACKENDS=headless,libinput
+      - WLR_HEADLESS_OUTPUTS=1
+      - WLR_RENDER_DRM_DEVICE=/dev/dri/renderD128
+      - WLR_LIBINPUT_NO_DEVICES=1
+      - LIBSEAT_BACKEND=noop
+      - MOZ_ENABLE_WAYLAND=1
+      - GOW_REQUIRED_DEVICES=/dev/input/* /dev/dri/* /dev/uinput
+    volumes:
+      - /srv/data/apps/sunshine/home:/home/retro
+      # Same path as on the host, so shortcuts in ROMs/ps3 work in both (and show in Files).
+      - /srv/data/apps/sunshine/home/.config/rpcs3/dev_hdd0:/srv/data/apps/sunshine/home/.config/rpcs3/dev_hdd0
+      - /srv/data/apps/sunshine/run/xdg:/run/user/games
+      - /srv/data/apps/sunshine/run/pulse:/tmp/pulse
+      - /srv/data/apps/sunshine/cfg/sway.config:/cfg/sway/config:ro
+      - /srv/data/apps/sunshine/cfg/10-setup_user.sh:/etc/cont-init.d/10-setup_user.sh:ro
+      - /dev/input:/dev/input
+      - /run/udev:/run/udev:ro
+      - /srv/data/external/Toshiba/Games/ROMs:/ROMs
+      - /srv/data/external/Toshiba/Games/bios:/bioses:ro
+      - /srv/data/external/Toshiba/Games/bios:/home/retro/bioses:ro
+      - /srv/data/external/Toshiba/Games/media:/media
+
+  sunshine:
+    image: manar/sunshine:local
+    build: ./image
+    # Wait for the games screen (sway's Wayland socket) before starting.
+    entrypoint: ["/bin/sh", "-c", "until [ -S /run/user/games/wayland-1 ]; do sleep 1; done; exec /usr/bin/sunshine"]
+    container_name: manar-games-sunshine
+    restart: unless-stopped
+    network_mode: host
+    user: "1000:1000"
+    group_add: ["995", "992", "44"]
+    depends_on: [esde]
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/uinput:/dev/uinput
+    device_cgroup_rules:
+      - 'c 13:* rmw'
+    environment:
+      - TZ=Asia/Dubai
+      - HOME=/sunhome
+      - XDG_RUNTIME_DIR=/run/user/games
+      - WAYLAND_DISPLAY=wayland-1
+      - LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri
+      - LIBVA_DRIVER_NAME=radeonsi
+      - PULSE_SERVER=unix:/tmp/pulse/pulse-socket
+    volumes:
+      - /srv/data/apps/sunshine/config:/sunhome
+      - /srv/data/apps/sunshine/run/xdg:/run/user/games
+      - /srv/data/apps/sunshine/run/pulse:/tmp/pulse
+      - /dev/input:/dev/input
+      - /run/udev:/run/udev:ro

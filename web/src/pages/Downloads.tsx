@@ -1,0 +1,430 @@
+import { useMemo, useState } from 'react';
+import { api } from '../lib/api';
+import { formatBytes, formatDuration, formatRate, ltr } from '../lib/format';
+import { usePoll } from '../lib/usePoll';
+import { useI18n, type MessageKey } from '../i18n';
+import { Button, Card, PageHeader } from '../components/ui';
+
+/**
+ * Downloads: the Internet Archive items MinisManager fetches itself (file by file, with pause,
+ * "download next", skip and retry) and qBittorrent's torrents — with whether each reached Jellyfin.
+ */
+type FileState = 'done' | 'downloading' | 'queued' | 'failed' | 'skipped' | 'paused';
+interface ArchiveFile {
+  name: string;
+  size: number;
+  bytes: number;
+  state: FileState;
+  rate: number;
+  failed: number;
+  library: boolean;
+}
+interface ArchiveJob {
+  id: string;
+  title: string;
+  shelf: string;
+  status: 'downloading' | 'paused' | 'done';
+  total: number;
+  have: number;
+  speed: number;
+  etaSec: number | null;
+  counts: Partial<Record<FileState, number>>;
+  files: ArchiveFile[];
+}
+interface Torrent {
+  hash: string;
+  name: string;
+  size: number;
+  progress: number;
+  state: string;
+  speed: number;
+  up: number;
+  etaSec: number | null;
+  shelf: string | null;
+  seeds: number | null;
+  inLibrary: number;
+}
+
+const DOT: Record<FileState, string> = {
+  done: 'bg-ok',
+  downloading: 'bg-primary animate-pulse',
+  queued: 'bg-muted',
+  failed: 'bg-danger',
+  skipped: 'bg-line',
+  paused: 'bg-amber-400',
+};
+const SHOW = 150; // rows shown before "n more…"
+
+function Bar({ value, live }: { value: number; live?: boolean }) {
+  return (
+    <div className="h-2 overflow-hidden rounded-full bg-canvas" role="progressbar" aria-valuenow={Math.round(value * 100)} aria-valuemin={0} aria-valuemax={100}>
+      <div className={`h-full rounded-full transition-[width] duration-700 ${live ? 'bg-primary' : 'bg-ok'}`} style={{ width: `${Math.min(100, Math.max(0, value * 100))}%` }} />
+    </div>
+  );
+}
+
+export function Downloads() {
+  const { t } = useI18n();
+  const [tab, setTab] = useState<'links' | 'archive' | 'torrents'>('links');
+  const { data, reload } = usePoll<{ archive: ArchiveJob[]; torrents: Torrent[] }>('/api/media/downloads', 2000);
+  const links = usePoll<{ downloads: LinkJob[] }>('/api/downloads', 2000);
+  const act = async (path: string, body?: unknown) => {
+    await api(path, { method: 'POST', body: body ?? {} }).catch(() => {});
+    void reload();
+  };
+  const tabs: { id: 'links' | 'archive' | 'torrents'; label: MessageKey; n: number }[] = [
+    { id: 'links', label: 'dl.links', n: links.data?.downloads.length ?? 0 },
+    { id: 'archive', label: 'dl.archive', n: data?.archive.length ?? 0 },
+    { id: 'torrents', label: 'dl.torrents', n: data?.torrents.length ?? 0 },
+  ];
+  return (
+    <>
+      <PageHeader title={t('dl.title')} back="/">
+        <div className="-mx-3 flex gap-1 overflow-x-auto px-3 py-0.5" role="tablist">
+          {tabs.map((x) => (
+            <button
+              key={x.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === x.id}
+              onClick={() => setTab(x.id)}
+              className={`min-h-9 shrink-0 rounded-full px-3 text-sm ${tab === x.id ? 'bg-primary text-white' : 'bg-surface text-ink shadow-card'}`}
+            >
+              {t(x.label)} {x.n > 0 && <span className="opacity-70">{x.n}</span>}
+            </button>
+          ))}
+        </div>
+      </PageHeader>
+      <main className="safe-bottom mx-auto max-w-3xl space-y-3 px-3">
+        <AddLink
+          onAdded={(kind) => {
+            setTab(kind === 'torrent' ? 'torrents' : 'links');
+            void reload();
+            void links.reload();
+          }}
+        />
+        {tab === 'links' && <LinkList jobs={links.data?.downloads ?? []} reload={() => void links.reload()} />}
+        {tab === 'archive' &&
+          (data?.archive.length ? data.archive.map((j) => <ArchiveCard key={j.id} job={j} act={act} />) : <Card><p className="p-4 text-center text-sm text-muted">{t('dl.empty')}</p></Card>)}
+        {tab === 'torrents' && <TorrentList torrents={data?.torrents ?? []} act={act} />}
+      </main>
+    </>
+  );
+}
+
+function ArchiveCard({ job, act }: { job: ArchiveJob; act: (path: string, body?: unknown) => Promise<void> }) {
+  const { t } = useI18n();
+  const [filter, setFilter] = useState<FileState | 'all'>('all');
+  const [q, setQ] = useState('');
+  const files = useMemo(() => {
+    const order: Record<FileState, number> = { downloading: 0, failed: 1, paused: 2, queued: 3, done: 4, skipped: 5 };
+    return job.files
+      .filter((f) => (filter === 'all' || f.state === filter) && (!q || f.name.toLowerCase().includes(q.toLowerCase())))
+      .sort((a, b) => order[a.state] - order[b.state]);
+  }, [job.files, filter, q]);
+  const pct = job.total ? job.have / job.total : 0;
+  const base = `/api/media/downloads/archive/${encodeURIComponent(job.id)}`;
+  const chips: (FileState | 'all')[] = ['all', 'downloading', 'queued', 'done', 'failed', 'skipped'];
+  return (
+    <>
+      <Card>
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-lg font-semibold text-heading">{job.title}</h2>
+            <p className="text-xs text-muted">{t('dl.shelf', { shelf: job.shelf })}</p>
+          </div>
+          {job.status !== 'done' && (
+            <Button variant={job.status === 'paused' ? 'primary' : 'secondary'} className="min-h-10 shrink-0" onClick={() => void act(`${base}/${job.status === 'paused' ? 'resume' : 'pause'}`)}>
+              {t(job.status === 'paused' ? 'dl.resume' : 'dl.pause')}
+            </Button>
+          )}
+        </div>
+        <div className="mt-3">
+          <Bar value={pct} live={job.status === 'downloading'} />
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink">
+          <span className="font-medium">{ltr(`${(pct * 100).toFixed(1)}%`)}</span>
+          <span className="text-muted">{t('dl.of', { have: formatBytes(job.have), total: formatBytes(job.total) })}</span>
+          {job.status === 'downloading' && job.speed > 0 && <span>↓ {formatRate(job.speed)}</span>}
+          {job.status === 'downloading' && job.etaSec !== null && <span className="text-muted">{t('dl.left', { time: formatDuration(job.etaSec) })}</span>}
+          {job.status === 'paused' && <span className="text-amber-600">{t('dl.paused')}</span>}
+          {job.status === 'done' && <span className="text-ok">{t('dl.doneAll')}</span>}
+        </div>
+      </Card>
+      <Card>
+        <div className="-mx-1 mb-2 flex gap-1 overflow-x-auto px-1 pb-1">
+          {chips.map((c) => {
+            const n = c === 'all' ? job.files.length : (job.counts[c] ?? 0);
+            if (c !== 'all' && !n) return null;
+            return (
+              <button key={c} type="button" onClick={() => setFilter(c)} className={`min-h-8 shrink-0 rounded-full px-3 text-xs ${filter === c ? 'bg-primary text-white' : 'bg-canvas text-ink'}`}>
+                {t(`dl.f.${c}` as MessageKey)} <span className="opacity-70">{n}</span>
+              </button>
+            );
+          })}
+        </div>
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={t('dl.search')}
+          className="mb-2 block min-h-10 w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-primary"
+        />
+        <ul className="divide-y divide-line">
+          {files.slice(0, SHOW).map((f) => (
+            <FileRow key={f.name} f={f} onAction={(action) => void act(`${base}/file`, { name: f.name, action })} />
+          ))}
+        </ul>
+        {files.length > SHOW && <p className="pt-2 text-center text-xs text-muted">{t('dl.more', { n: files.length - SHOW })}</p>}
+      </Card>
+    </>
+  );
+}
+
+function FileRow({ f, onAction }: { f: ArchiveFile; onAction: (a: 'first' | 'skip' | 'retry' | 'unskip') => void }) {
+  const { t } = useI18n();
+  const parts = f.name.split('/');
+  const name = parts.at(-1)!;
+  const folder = parts.length > 2 ? parts.at(-2) : '';
+  return (
+    <li className="flex items-center gap-3 py-2.5">
+      <span className={`size-2.5 shrink-0 rounded-full ${DOT[f.state]}`} aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm text-ink" dir="auto">
+          {name}
+        </p>
+        <p className="truncate text-xs text-muted" dir="auto">
+          {folder && <span>{folder} · </span>}
+          {formatBytes(f.size)}
+          {f.state === 'downloading' && f.size > 0 && (
+            <span>
+              {' '}
+              · {ltr(`${((f.bytes / f.size) * 100).toFixed(0)}%`)} · ↓ {formatRate(f.rate)}
+            </span>
+          )}
+          {f.state === 'failed' && <span className="text-danger"> · {t('dl.f.failed')}</span>}
+          {f.library && <span className="text-ok"> · ✓ {t('dl.inLibrary')}</span>}
+        </p>
+        {f.state === 'downloading' && f.size > 0 && (
+          <div className="mt-1">
+            <Bar value={f.bytes / f.size} live />
+          </div>
+        )}
+      </div>
+      <div className="flex shrink-0 gap-1">
+        {(f.state === 'queued' || f.state === 'paused') && (
+          <>
+            <button type="button" className="rounded-lg bg-primary-soft px-2 py-1 text-xs text-primary-ink" onClick={() => onAction('first')}>
+              {t('dl.next')}
+            </button>
+            <button type="button" className="rounded-lg bg-canvas px-2 py-1 text-xs text-ink" onClick={() => onAction('skip')}>
+              {t('dl.skip')}
+            </button>
+          </>
+        )}
+        {f.state === 'downloading' && (
+          <button type="button" className="rounded-lg bg-canvas px-2 py-1 text-xs text-ink" onClick={() => onAction('skip')}>
+            {t('dl.skip')}
+          </button>
+        )}
+        {f.state === 'failed' && (
+          <button type="button" className="rounded-lg bg-primary-soft px-2 py-1 text-xs text-primary-ink" onClick={() => onAction('retry')}>
+            {t('dl.retry')}
+          </button>
+        )}
+        {f.state === 'skipped' && (
+          <button type="button" className="rounded-lg bg-canvas px-2 py-1 text-xs text-ink" onClick={() => onAction('unskip')}>
+            {t('dl.unskip')}
+          </button>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function TorrentList({ torrents, act }: { torrents: Torrent[]; act: (path: string) => Promise<void> }) {
+  const { t } = useI18n();
+  if (!torrents.length) return <Card><p className="p-4 text-center text-sm text-muted">{t('dl.empty')}</p></Card>;
+  const sorted = [...torrents].sort((a, b) => Number(a.progress >= 1) - Number(b.progress >= 1) || b.speed - a.speed);
+  return (
+    <ul className="overflow-hidden rounded-list bg-surface shadow-card">
+      {sorted.map((x) => {
+        const paused = /^(stopped|paused)/i.test(x.state);
+        const done = x.progress >= 1;
+        return (
+          <li key={x.hash} className="border-line px-4 py-3 [&+&]:border-t">
+            <div className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm text-ink" dir="auto">
+                  {x.name}
+                </p>
+                <p className="truncate text-xs text-muted">
+                  {formatBytes(x.size)} · {ltr(`${(x.progress * 100).toFixed(1)}%`)}
+                  {!done && x.speed > 0 && <span> · ↓ {formatRate(x.speed)}</span>}
+                  {!done && x.etaSec !== null && <span> · {t('dl.left', { time: formatDuration(x.etaSec) })}</span>}
+                  {x.up > 0 && <span> · ↑ {formatRate(x.up)}</span>}
+                  {!done && x.seeds !== null && <span> · {t('dl.seeds', { n: x.seeds })}</span>}
+                  {x.shelf && <span> · {x.shelf}</span>}
+                  {x.inLibrary > 0 && <span className="text-ok"> · ✓ {t('dl.libCount', { n: x.inLibrary })}</span>}
+                </p>
+              </div>
+              <button
+                type="button"
+                className={`shrink-0 rounded-lg px-3 py-1.5 text-xs ${paused ? 'bg-primary text-white' : 'bg-canvas text-ink'}`}
+                onClick={() => void act(`/api/media/downloads/torrent/${x.hash}/${paused ? 'resume' : 'pause'}`)}
+              >
+                {t(paused ? 'dl.resume' : 'dl.pause')}
+              </button>
+            </div>
+            {!done && (
+              <div className="mt-2">
+                <Bar value={x.progress} live={!paused} />
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+interface LinkJob {
+  id: number;
+  url: string;
+  status: 'queued' | 'running' | 'done' | 'failed';
+  progress: string | null;
+  title: string | null;
+  file: string | null;
+  sizeMB: number | null;
+  shareUrl: string | null;
+  filesUrl: string | null;
+  error: string | null;
+}
+
+const MAGNET_RE = /^magnet:\?/i;
+
+/** Paste a link: magnet/.torrent → qBittorrent, video page → yt-dlp, any other file → straight into Downloads. */
+function AddLink({ onAdded }: { onAdded: (kind: 'torrent' | 'link') => void }) {
+  const { t } = useI18n();
+  const [url, setUrl] = useState('');
+  const [audio, setAudio] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const value = url.trim();
+  const torrent = MAGNET_RE.test(value) || /\.torrent(\?|$)/i.test(value);
+  const submit = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await api<{ ok: boolean; message: string }>('/api/app/share', { method: 'POST', body: { value, audio: !torrent && audio } });
+      setMsg({ ok: r.ok, text: r.ok ? t(torrent ? 'dl.addedTorrent' : 'dl.addedLink') : r.message });
+      if (r.ok) {
+        setUrl('');
+        onAdded(torrent ? 'torrent' : 'link');
+      }
+    } catch (e) {
+      setMsg({ ok: false, text: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Card>
+      <form
+        className="space-y-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (value) void submit();
+        }}
+      >
+        <div className="flex gap-2">
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder={t('dl.linkPlaceholder')}
+            dir="ltr"
+            inputMode="url"
+            autoCapitalize="none"
+            className="min-h-12 min-w-0 flex-1 rounded-xl border border-line bg-canvas px-3 text-sm"
+            aria-label={t('dl.linkPlaceholder')}
+          />
+          <Button type="submit" disabled={!value || busy}>
+            {busy ? '…' : t('dl.download')}
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+          {!torrent && (
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={audio} onChange={(e) => setAudio(e.target.checked)} className="size-4" />
+              {t('dl.audioOnly')}
+            </label>
+          )}
+          <span>{t(torrent ? 'dl.willTorrent' : 'dl.linkHint')}</span>
+        </div>
+        {msg && <p className={`text-sm ${msg.ok ? 'text-ok-ink' : 'text-danger'}`}>{msg.text}</p>}
+      </form>
+    </Card>
+  );
+}
+
+function LinkList({ jobs, reload }: { jobs: LinkJob[]; reload: () => void }) {
+  const { t } = useI18n();
+  if (!jobs.length) return <Card><p className="p-4 text-center text-sm text-muted">{t('dl.noLinks')}</p></Card>;
+  const pct = (p: string | null) => {
+    const m = p && /([\d.]+)%/.exec(p);
+    return m ? Number(m[1]) / 100 : null;
+  };
+  return (
+    <Card>
+      <ul className="divide-y divide-line">
+        {jobs.map((j) => (
+          <li key={j.id} className="py-3">
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-heading" dir="auto">
+                  {j.title ?? j.file ?? j.url}
+                </p>
+                <p className="truncate text-xs text-muted" dir="ltr">
+                  {j.url}
+                </p>
+              </div>
+              {(j.status === 'running' || j.status === 'queued') && (
+                <button
+                  type="button"
+                  className="min-h-9 shrink-0 rounded-lg px-2 text-sm text-danger"
+                  onClick={() => void api(`/api/downloads/${j.id}/cancel`, { method: 'POST', body: {} }).finally(reload)}
+                >
+                  {t('dl.cancel')}
+                </button>
+              )}
+            </div>
+            {j.status === 'running' && (
+              <div className="mt-2 space-y-1">
+                <Bar value={pct(j.progress) ?? 0} live />
+                <p className="text-xs text-muted" dir="ltr">{j.progress}</p>
+              </div>
+            )}
+            <p className="mt-1 text-xs">
+              {j.status === 'queued' && <span className="text-muted">{t('dl.waiting')}</span>}
+              {j.status === 'done' && (
+                <span className="flex flex-wrap gap-x-3 text-ok-ink">
+                  ✓ {j.sizeMB ? `${j.sizeMB} MB` : ''}
+                  {j.filesUrl && (
+                    <a href={j.filesUrl} className="text-primary">
+                      {t('dl.openFolder')}
+                    </a>
+                  )}
+                  {j.shareUrl && (
+                    <a href={j.shareUrl} target="_blank" rel="noreferrer" className="text-primary">
+                      {t('dl.shareLink')}
+                    </a>
+                  )}
+                </span>
+              )}
+              {j.status === 'failed' && <span className="text-danger">✗ {j.error}</span>}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}

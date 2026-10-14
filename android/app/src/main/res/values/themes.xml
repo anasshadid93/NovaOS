@@ -1,0 +1,66 @@
+<resources>
+    <style name="Theme.MinisManager" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">@color/primary_soft</item>
+        <item name="colorSecondary">@color/primary</item>
+        <item name="colorSecondaryContainer">@color/primary_soft</item>
+        <item name="colorOnSecondaryContainer">@color/primary_strong</item>
+        <item name="colorSurfaceContainerLow">@color/surface</item>
+        <item name="colorSurfaceContainer">@color/surface</item>
+        <item name="colorSurfaceContainerHigh">@color/surface</item>
+        <item name="colorSurfaceContainerHighest">@color/primary_soft</item>
+        <item name="elevationOverlayEnabled">false</item>
+        <item name="android:colorBackground">@color/canvas</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/ink</item>
+        <item name="android:windowBackground">@color/canvas</item>
+        <item name="android:statusBarColor">@color/canvas</item>
+        <item name="android:navigationBarColor">@color/canvas</item>
+        <item name="materialSwitchStyle">@style/Widget.Material3.CompoundButton.MaterialSwitch</item>
+        <item name="materialButtonStyle">@style/MM.Button</item>
+    </style>
+
+    <!-- A visible focus ring for the TV remote on every filled button. -->
+    <style name="MM.Button" parent="Widget.Material3.Button">
+        <item name="strokeColor">@color/btn_focus_stroke</item>
+        <item name="strokeWidth">3dp</item>
+    </style>
+    <style name="MM.Button.Tonal" parent="Widget.Material3.Button.TonalButton">
+        <item name="strokeColor">@color/btn_focus_stroke</item>
+        <item name="strokeWidth">3dp</item>
+    </style>
+    <style name="MM.Button.Text" parent="Widget.Material3.Button.TextButton">
+        <item name="strokeColor">@color/btn_focus_stroke</item>
+        <item name="strokeWidth">3dp</item>
+    </style>
+
+    <!-- Launch: no flash of an empty window while it decides where to go. -->
+    <style name="Theme.MinisManager.Launch" parent="Theme.MinisManager">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowDisablePreview">true</item>
+    </style>
+
+    <style name="Theme.MinisManager.Dialog" parent="Theme.Material3.DayNight.Dialog">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/ink</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:windowBackground">@drawable/dialog_bg</item>
+        <item name="android:windowMinWidthMajor">88%</item>
+        <item name="android:windowMinWidthMinor">92%</item>
+    </style>
+
+    <style name="TextHeading" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:textColor">@color/heading</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="TextBody" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:textColor">@color/ink</item>
+    </style>
+    <style name="TextMuted" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">@color/muted</item>
+    </style>
+</resources>

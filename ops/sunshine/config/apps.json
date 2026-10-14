@@ -1,0 +1,6 @@
+{
+  "env": {},
+  "apps": [
+    { "name": "Games", "image-path": "", "exclude-global-prep-cmd": "false", "auto-detach": "true" }
+  ]
+}
