@@ -1,9 +1,9 @@
 #!/bin/bash
-# MinisManager one-line installer for Debian/Ubuntu (systemd). Run as root:
+# NovaOS one-line installer for Debian/Ubuntu (systemd). Run as root:
 #   curl -fsSL https://raw.githubusercontent.com/anasshadid93/NovaOS/main/deploy/get.sh | sudo bash
 # Options (environment variables):
 #   MANAR_USER=name        service user (default: the user who ran sudo, else a new system user "manar")
-#   MANAR_DIR=/opt/minismanager   where the code lives (default: /opt/minismanager)
+#   MANAR_DIR=/opt/novaos   where the code lives (default: /opt/novaos)
 #   MANAR_DATA_ROOT=/srv/data     your files, apps data and mounted drives (default: /srv/data)
 #   MANAR_REPO=url|path    git source (default: GitHub); a local path is copied instead of cloned
 #   MANAR_REF=main         branch or tag to install (default: main)
@@ -15,7 +15,7 @@ set -euo pipefail
 
 REPO=${MANAR_REPO:-https://github.com/anasshadid93/NovaOS.git}
 REF=${MANAR_REF:-main}
-DIR=${MANAR_DIR:-/opt/minismanager}
+DIR=${MANAR_DIR:-/opt/novaos}
 DATA_ROOT=${MANAR_DATA_ROOT:-/srv/data}
 USER_NAME=${MANAR_USER:-${SUDO_USER:-}}
 NODE_MAJOR=22

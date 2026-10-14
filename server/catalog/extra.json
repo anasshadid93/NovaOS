@@ -121,7 +121,7 @@
    "id": "browser",
    "title": "Browser",
    "tagline": "A real Chromium running on the server, used from any screen",
-   "description": "Chromium on the server, shown in your browser (or a MinisManager desktop window). Opens any website, including ones that can't be embedded. Downloads land in Files → Downloads.",
+   "description": "Chromium on the server, shown in your browser (or a NovaOS desktop window). Opens any website, including ones that can't be embedded. Downloads land in Files → Downloads.",
    "category": "Utilities",
    "developer": "LinuxServer.io / Chromium",
    "icon": "chromium",
@@ -221,7 +221,7 @@
      }
     }
    },
-   "tips": "Runs on the server and shows in your browser or a MinisManager desktop window. Your library is at Files (/config/Files) inside the app. Reachable only on your tailnet.",
+   "tips": "Runs on the server and shows in your browser or a NovaOS desktop window. Your library is at Files (/config/Files) inside the app. Reachable only on your tailnet.",
    "source": {
     "repo": "linuxserver/docker-libreoffice",
     "path": "lscr.io/linuxserver/libreoffice:25.8.7.3-r0-ls5"
@@ -279,7 +279,7 @@
      }
     }
    },
-   "tips": "Runs on the server and shows in your browser or a MinisManager desktop window. Your library is at Files (/config/Files) inside the app. Reachable only on your tailnet.",
+   "tips": "Runs on the server and shows in your browser or a NovaOS desktop window. Your library is at Files (/config/Files) inside the app. Reachable only on your tailnet.",
    "source": {
     "repo": "linuxserver/docker-freecad",
     "path": "lscr.io/linuxserver/freecad:1.1.4-ls153"
@@ -337,7 +337,7 @@
      }
     }
    },
-   "tips": "Runs on the server and shows in your browser or a MinisManager desktop window. Your library is at Files (/config/Files) inside the app. Reachable only on your tailnet.",
+   "tips": "Runs on the server and shows in your browser or a NovaOS desktop window. Your library is at Files (/config/Files) inside the app. Reachable only on your tailnet.",
    "source": {
     "repo": "linuxserver/docker-blender",
     "path": "lscr.io/linuxserver/blender:5.2.2-ls242"
@@ -1078,7 +1078,7 @@
      }
     }
    },
-   "tips": "Finished torrents land in Files → Downloads → Torrents. MinisManager watches it and tells you on Telegram when a download is done; send a magnet link to the bot to start one.",
+   "tips": "Finished torrents land in Files → Downloads → Torrents. NovaOS watches it and tells you on Telegram when a download is done; send a magnet link to the bot to start one.",
    "source": {
     "repo": "IceWhaleTech/CasaOS-AppStore",
     "commit": "0909364b800950030e71ea82355a5969a1c08b39",
@@ -1407,7 +1407,7 @@
      }
     }
    },
-   "tips": "Drop files in Files → Documents → Paperless Inbox; they are read and filed within a minute. Login user: anas (password in MinisManager var/apps-credentials.json).",
+   "tips": "Drop files in Files → Documents → Paperless Inbox; they are read and filed within a minute. Login user: anas (password in NovaOS var/apps-credentials.json).",
    "source": {
     "repo": "paperless-ngx/paperless-ngx",
     "path": "docker/compose/docker-compose.sqlite-tika.yml (v3.3.0)"
@@ -1521,7 +1521,7 @@
      }
     }
    },
-   "tips": "Watches the server's services and apps; alerts go to Telegram through MinisManager.",
+   "tips": "Watches the server's services and apps; alerts go to Telegram through NovaOS.",
    "source": {
     "repo": "IceWhaleTech/CasaOS-AppStore",
     "commit": "0909364b800950030e71ea82355a5969a1c08b39",
@@ -1659,7 +1659,7 @@
      }
     }
    },
-   "tips": "Checks every disk every 6 hours; a failing disk sends a Telegram alert through MinisManager.",
+   "tips": "Checks every disk every 6 hours; a failing disk sends a Telegram alert through NovaOS.",
    "source": {
     "repo": "AnalogJ/scrutiny",
     "commit": "v0.9.5",

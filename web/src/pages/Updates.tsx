@@ -36,7 +36,7 @@ interface SelfUpd {
   pending: { tag: string } | null;
 }
 
-/** MinisManager itself (GitHub Releases), system packages, and newer versions of the apps (containers). */
+/** NovaOS itself (GitHub Releases), system packages, and newer versions of the apps (containers). */
 export function Updates() {
   const { t, tn, formatRelative } = useI18n();
   const ask = useConfirm();

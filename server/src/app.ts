@@ -97,7 +97,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('Referrer-Policy', 'no-referrer');
     reply.header('X-Frame-Options', 'DENY');
-    // Microphone only for MinisManager's own pages (voice chat), never for anything framed in it.
+    // Microphone only for NovaOS's own pages (voice chat), never for anything framed in it.
     reply.header('Permissions-Policy', 'camera=(), microphone=(self), geolocation=()');
     if (req.url.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
     else reply.header('Content-Security-Policy', CSP);

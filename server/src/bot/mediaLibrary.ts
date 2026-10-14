@@ -180,7 +180,7 @@ async function tvmaze(title: string): Promise<Show | null> {
 
 // ---- Jellyfin ------------------------------------------------------------------------------------
 let jfToken: string | null = null;
-const jfAuth = (token?: string) => `MediaBrowser Client="MinisManager", Device="the server", DeviceId="minismanager-media", Version="1.0"${token ? `, Token="${token}"` : ''}`;
+const jfAuth = (token?: string) => `MediaBrowser Client="NovaOS", Device="the server", DeviceId="minismanager-media", Version="1.0"${token ? `, Token="${token}"` : ''}`;
 export async function jf<T = unknown>(pathAndQuery: string, init: { method?: string; body?: unknown } = {}, retry = true): Promise<T> {
   const c = cred('jellyfin');
   if (!jfToken) {

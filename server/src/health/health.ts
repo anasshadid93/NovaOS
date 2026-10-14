@@ -14,7 +14,7 @@ import { backupNow, backupState } from '../backup/backup.js';
 
 /**
  * Server health on one page: every check the server runs, green or not, each with the one thing to do about
- * it (a button when MinisManager can fix it itself). Builds on the alert loop (notify.ts) and adds
+ * it (a button when NovaOS can fix it itself). Builds on the alert loop (notify.ts) and adds
  * what alerts don't cover: backup freshness, the HTTPS certificate, a pending reboot, and space
  * Docker could give back.
  */
@@ -27,7 +27,7 @@ export interface Check {
   level: Level;
   title: string;
   detail?: string;
-  /** what to do: a MinisManager page, or an action this module runs */
+  /** what to do: a NovaOS page, or an action this module runs */
   fix?: { kind: 'link'; href: string } | { kind: 'action'; action: string; arg?: string };
 }
 
@@ -133,7 +133,7 @@ export async function checks(): Promise<Check[]> {
   const age = b.lastOk ? (Date.now() - b.lastOk) / 3600_000 : Infinity;
   out.push({ id: 'backup', group: 'backup', level: b.running ? 'ok' : age > 72 ? 'critical' : age > 36 ? 'warning' : 'ok', title: 'Backup', detail: b.running ? 'running' : b.lastOk ? `${Math.round(age)} h ago` : 'none yet', fix: !b.running && age > 36 ? { kind: 'action', action: 'backup-now' } : { kind: 'link', href: '/backup' } });
 
-  // HTTPS certificate of MinisManager itself.
+  // HTTPS certificate of NovaOS itself.
   const days = await certDaysLeft();
   if (days !== null) out.push({ id: 'cert', group: 'security', level: days < 7 ? 'critical' : days < 20 ? 'warning' : 'ok', title: 'HTTPS certificate', detail: `${days} days left` });
 

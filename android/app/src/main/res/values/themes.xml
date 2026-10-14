@@ -1,5 +1,5 @@
 <resources>
-    <style name="Theme.MinisManager" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.NovaOS" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorOnPrimary">#FFFFFF</item>
         <item name="colorPrimaryContainer">@color/primary_soft</item>
@@ -36,12 +36,12 @@
     </style>
 
     <!-- Launch: no flash of an empty window while it decides where to go. -->
-    <style name="Theme.MinisManager.Launch" parent="Theme.MinisManager">
+    <style name="Theme.NovaOS.Launch" parent="Theme.NovaOS">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowDisablePreview">true</item>
     </style>
 
-    <style name="Theme.MinisManager.Dialog" parent="Theme.Material3.DayNight.Dialog">
+    <style name="Theme.NovaOS.Dialog" parent="Theme.Material3.DayNight.Dialog">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorOnPrimary">#FFFFFF</item>
         <item name="colorSurface">@color/surface</item>

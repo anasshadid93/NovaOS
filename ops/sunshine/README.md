@@ -12,7 +12,7 @@ Wolf gave black screens on the TV and slow starts (a new container per session).
   var/apps-credentials.json `sunshine`). `system_tray = disabled` is required, otherwise the main loop exits in a container.
 - `manar-games-pulse`: PulseAudio for both (socket /srv/data/apps/sunshine/run/pulse).
 - The TV (Android TV Moonlight) shows BLACK with HEVC from the 890M (both Wolf and Sunshine); software decode is fine. So hevc_mode=1 + av1_mode=1 → H.264 only.
-- Pairing: MinisManager → Games → type the PIN Moonlight shows (server/src/games/games.ts → Sunshine /api/pin with pairing_id).
+- Pairing: NovaOS → Games → type the PIN Moonlight shows (server/src/games/games.ts → Sunshine /api/pin with pairing_id).
 - Wolf: /srv/data/apps/wolf (stopped, restart=no, configs kept in /etc/wolf for rollback).
 - **DANGER fixed 2026-10-14:** the es-de image's /etc/cont-init.d/10-setup_user.sh runs `userdel -r` when uid 1000 already
   exists — i.e. on every restart of the same container — wiping the bind-mounted home AND anything mounted inside it

@@ -73,7 +73,7 @@ registerTask('fs.extract', async (ctx, params) => {
   }
   invalidateIndex();
   ctx.log('Done');
-  // Phone (MinisManager app / ntfy) and Telegram: it's ready.
+  // Phone (NovaOS app / ntfy) and Telegram: it's ready.
   void postHook({ type: 'notice', text: `✅ خلص فك الضغط: ${name}\n📁 ${path.basename(dest)}` });
 });
 

@@ -49,7 +49,7 @@ export interface Shortcut {
   title: string;
   icon: ReactNode;
   open: () => void;
-  /** MinisManager screens can open a second window. */
+  /** NovaOS screens can open a second window. */
   openNew?: () => void;
   /** Rows for the Properties sheet. */
   props: [string, string][];

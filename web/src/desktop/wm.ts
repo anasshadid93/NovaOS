@@ -14,7 +14,7 @@ export interface Win {
   /** Desktop app id ("files", "monitor", …) or "web:<launcher key>" for a web app. */
   app: string;
   title: string;
-  /** In-window route for MinisManager screens, URL for web apps (follows navigation). */
+  /** In-window route for NovaOS screens, URL for web apps (follows navigation). */
   route: string;
   /** The route it was opened with. */
   start: string;

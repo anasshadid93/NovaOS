@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "MinisManager"
+rootProject.name = "NovaOS"
 include(":app")

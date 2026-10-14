@@ -32,7 +32,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.n5.minismanager.databinding.ActivityMainBinding
 import kotlin.concurrent.thread
 
-/** MinisManager itself, in a WebView — plus what a browser can't do on a phone or a TV. */
+/** NovaOS itself, in a WebView — plus what a browser can't do on a phone or a TV. */
 class MainActivity : AppCompatActivity() {
     private lateinit var b: ActivityMainBinding
     private lateinit var prefs: Prefs
@@ -81,7 +81,7 @@ class MainActivity : AppCompatActivity() {
             builtInZoomControls = false
             loadWithOverviewMode = true
             useWideViewPort = true
-            // MinisManager can tell it's inside the app (and on a TV) from the user agent.
+            // NovaOS can tell it's inside the app (and on a TV) from the user agent.
             userAgentString = "$userAgentString MinisManagerApp/${BuildConfig.VERSION_NAME}" + if (tv) " (TV)" else " (Phone)"
         }
         CookieManager.getInstance().setAcceptCookie(true)

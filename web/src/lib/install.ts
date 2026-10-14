@@ -25,8 +25,8 @@ export function initInstallPrompt() {
   });
 }
 
-/** Inside the MinisManager Android app (android/ in this repo): it appends "MinisManagerApp/<version>" to the user agent. */
-export const inApp = () => /MinisManagerApp\//.test(navigator.userAgent);
+/** Inside the NovaOS Android app (android/ in this repo): it appends "MinisManagerApp/<version>" to the user agent. */
+export const inApp = () => /NovaOSApp\//.test(navigator.userAgent);
 /** The app's own settings screen (server, notifications, fingerprint lock), through its JavaScript bridge. */
 export const openAppSettings = () => (window as { MinisApp?: { openSettings(): void } }).MinisApp?.openSettings();
 

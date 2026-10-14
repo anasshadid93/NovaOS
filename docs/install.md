@@ -1,4 +1,4 @@
-# Installing MinisManager
+# Installing NovaOS
 
 ## The short way (Debian/Ubuntu)
 
@@ -40,9 +40,9 @@ through `tailscale serve` or your reverse proxy, never straight from the LAN. `d
 - `sudo apt install smartmontools` turns on SMART data on the Disks screen.
 - `ufw` is not installed. The Firewall screen only reads its status, so install and configure it yourself if you want it.
 
-### Moving MinisManager to another folder or machine
+### Moving NovaOS to another folder or machine
 
-Everything MinisManager is — phone app, desktop mode, server, database (`var/manar.db`),
+Everything NovaOS is — phone app, desktop mode, server, database (`var/manar.db`),
 thumbnails and settings — lives in this one folder. Nothing in it points at its own location.
 
 ```bash
@@ -52,7 +52,7 @@ cd /new/place/manar && npm ci && npm run build
 sudo deploy/install.sh --user "$USER"      # rewrites the service, helper and sudoers for the new path
 ```
 
-Outside the folder, by design (they belong to the server, not to MinisManager):
+Outside the folder, by design (they belong to the server, not to NovaOS):
 
 | Where | What |
 |---|---|

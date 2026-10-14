@@ -13,11 +13,11 @@ import { getDb, kvGet, kvSet } from '../db.js';
  * ~/ArtCraft/<id>/web by ~/ArtCraft/update.sh.
  *
  * They are third-party code, so they are served from their own origin (a separate port,
- * https://<host>:7444) and never from MinisManager's: a page there can't read or call
- * MinisManager's API (cross-origin, and the API's Origin check rejects it).
+ * https://<host>:7444) and never from NovaOS's: a page there can't read or call
+ * NovaOS's API (cross-origin, and the API's Origin check rejects it).
  *
  * Login: the launcher links carry a short-lived signed ticket (`?t=`). The app server swaps it
- * for its own cookie, so the apps also open in a browser that doesn't share MinisManager's
+ * for its own cookie, so the apps also open in a browser that doesn't share NovaOS's
  * cookies (an installed PWA opens links in a separate browser on phones).
  */
 
@@ -94,10 +94,10 @@ export function verifyCraft(kind: 't' | 'c', token: string | undefined, now = Da
 
 export const craftUrl = (id: string, userId?: number) => `${config.craftOrigin}/${id}/${userId ? `?t=${signCraft('t', userId, TICKET_MS)}` : ''}`;
 
-const signInPage = (id: string) => `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>MinisManager</title>
+const signInPage = (id: string) => `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>NovaOS</title>
 <body style="font:16px system-ui,sans-serif;display:grid;place-items:center;min-height:90vh;margin:0;background:#eef3fb;color:#1a3a7c;text-align:center">
-<div><p>Open this app from <b>MinisManager</b> → All apps.</p><p dir="rtl">افتح التطبيق من <b>MinisManager</b> ← كل التطبيقات.</p>
-<p><a href="${config.publicOrigin}/launcher" style="display:inline-block;padding:12px 22px;border-radius:12px;background:#2f6fe4;color:#fff;text-decoration:none">MinisManager</a></p>
+<div><p>Open this app from <b>NovaOS</b> → All apps.</p><p dir="rtl">افتح التطبيق من <b>NovaOS</b> ← كل التطبيقات.</p>
+<p><a href="${config.publicOrigin}/launcher" style="display:inline-block;padding:12px 22px;border-radius:12px;background:#2f6fe4;color:#fff;text-decoration:none">NovaOS</a></p>
 <p style="font-size:12px;color:#64748b">${id}</p></div></body>`;
 
 const ORIGIN_RE = /^(https|wss):\/\/[a-z0-9.-]{3,100}(:\d{2,5})?$/;
@@ -117,7 +117,7 @@ const CRAFT_CSP = [
   "font-src 'self' data:",
   "connect-src 'self' data: blob:",
   "worker-src 'self' blob:",
-  // Only MinisManager's desktop may show these apps inside its windows.
+  // Only NovaOS's desktop may show these apps inside its windows.
   `frame-ancestors ${allowedOrigins().join(' ')}`,
   "base-uri 'none'",
   "form-action 'none'",
@@ -230,7 +230,7 @@ export async function buildCraftServer(): Promise<FastifyInstance> {
   return app;
 }
 
-/** MinisManager-side API: the list (for the launcher) and the icons. */
+/** NovaOS-side API: the list (for the launcher) and the icons. */
 export async function craftRoutes(app: FastifyInstance) {
   app.get('/api/craft', { preHandler: requireAuth }, async (req) => craftApps().map((a) => ({ ...a, url: craftUrl(a.id, req.session!.userId) })));
   app.get<{ Params: { id: string } }>('/api/icons/craft/:id', { preHandler: requireAuth }, async (req, reply) => {

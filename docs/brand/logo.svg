@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- NovaOS: a nova (four-point star) with one small body on its orbit. Original artwork for this project. -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#4c8dff"/>
@@ -6,32 +7,34 @@
       <stop offset="1" stop-color="#1a3a7c"/>
     </linearGradient>
     <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fff" stop-opacity="0.28"/>
+      <stop offset="0" stop-color="#fff" stop-opacity="0.26"/>
       <stop offset="1" stop-color="#fff" stop-opacity="0"/>
     </linearGradient>
-    <linearGradient id="m" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="star" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#dbe7ff"/>
+      <stop offset="1" stop-color="#d6e4ff"/>
     </linearGradient>
-    <radialGradient id="led" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#b9ffd2"/>
-      <stop offset="0.45" stop-color="#3ee07a"/>
-      <stop offset="1" stop-color="#16a34a"/>
+    <radialGradient id="moon" cx="0.35" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#c8ffdc"/>
+      <stop offset="0.5" stop-color="#3ee07a"/>
+      <stop offset="1" stop-color="#15913f"/>
     </radialGradient>
     <filter id="shadow" filterUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
       <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#0b1f4d" flood-opacity="0.35"/>
     </filter>
     <filter id="glow" x="-100%" y="-100%" width="300%" height="300%">
-      <feGaussianBlur stdDeviation="10"/>
+      <feGaussianBlur stdDeviation="22"/>
     </filter>
   </defs>
   <rect width="512" height="512" rx="116" fill="url(#bg)"/>
   <path d="M0 116A116 116 0 0 1 116 0h280a116 116 0 0 1 116 116v120H0z" fill="url(#gloss)"/>
-  <!-- M as a rising/falling pulse -->
-  <path d="M138 352V178l118 134 118-134v174" fill="none" stroke="url(#m)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round" filter="url(#shadow)"/>
-  <!-- device base -->
-  <rect x="150" y="396" width="212" height="18" rx="9" fill="#ffffff" opacity="0.55"/>
-  <!-- status LED -->
-  <circle cx="392" cy="126" r="30" fill="#3ee07a" opacity="0.55" filter="url(#glow)"/>
-  <circle cx="392" cy="126" r="21" fill="url(#led)" stroke="#ffffff" stroke-opacity="0.85" stroke-width="5"/>
+  <!-- orbit -->
+  <ellipse cx="256" cy="256" rx="178" ry="64" transform="rotate(-25 256 256)" fill="none" stroke="#ffffff" stroke-opacity="0.38" stroke-width="13"/>
+  <!-- halo -->
+  <circle cx="256" cy="256" r="78" fill="#ffffff" opacity="0.32" filter="url(#glow)"/>
+  <!-- the nova -->
+  <path d="M256 78C263 194 318 249 434 256C318 263 263 318 256 434C249 318 194 263 78 256C194 249 249 194 256 78Z" fill="url(#star)" filter="url(#shadow)"/>
+  <path d="M256 190C259 236 276 253 322 256C276 259 259 276 256 322C253 276 236 259 190 256C236 253 253 236 256 190Z" fill="#ffffff" opacity="0.9" transform="rotate(45 256 256)"/>
+  <!-- the small body on the orbit -->
+  <circle cx="104" cy="304" r="23" fill="url(#moon)" stroke="#ffffff" stroke-opacity="0.9" stroke-width="5"/>
 </svg>

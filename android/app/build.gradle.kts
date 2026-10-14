@@ -5,7 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-// Release signing: keystore and passwords live outside git (MinisManager/var, backed up nightly).
+// Release signing: keystore and passwords live outside git (NovaOS/var, backed up nightly).
 val keystoreProps = Properties().apply {
     val f = rootProject.file("keystore.properties")
     if (f.exists()) f.inputStream().use { load(it) }
@@ -19,8 +19,8 @@ android {
         applicationId = "com.n5.minismanager"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.1.1"
+        versionCode = 4
+        versionName = "1.2.0"
     }
 
     signingConfigs {

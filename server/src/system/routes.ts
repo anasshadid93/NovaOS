@@ -275,7 +275,7 @@ export async function systemRoutes(app: FastifyInstance) {
   });
 
   app.post('/api/notify/test', { preHandler: requireAuth }, async () => {
-    await notify('Test notification', 'MinisManager notifications are working.', '/settings/notifications');
+    await notify('Test notification', 'NovaOS notifications are working.', '/settings/notifications');
     return { ok: true };
   });
 

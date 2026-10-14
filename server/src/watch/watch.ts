@@ -256,7 +256,7 @@ export async function watchRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  // Posters: Jellyfin's and TMDB's, through MinisManager (the page only loads images from itself).
+  // Posters: Jellyfin's and TMDB's, through NovaOS (the page only loads images from itself).
   app.get<{ Params: { id: string }; Querystring: { type?: string } }>('/api/watch/img/:id', { preHandler: requireAuth }, async (req, reply) => {
     if (!/^[a-f0-9]{32}$/.test(req.params.id)) return reply.code(400).send();
     const type = req.query.type === 'backdrop' ? 'Backdrop' : req.query.type === 'thumb' ? 'Thumb' : 'Primary';

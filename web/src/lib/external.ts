@@ -1,8 +1,8 @@
 /**
- * Opening apps (Tailscale addresses) in the phone's real browser, not inside MinisManager.
+ * Opening apps (Tailscale addresses) in the phone's real browser, not inside NovaOS.
  *
  * In the installed app (standalone PWA) Android opens other sites in a "Custom Tab" sheet that
- * belongs to MinisManager. An Android intent URL aimed at the browser that installed the PWA
+ * belongs to NovaOS. An Android intent URL aimed at the browser that installed the PWA
  * hands the link to that browser as a normal tab instead. Everywhere else (a browser tab,
  * iPhone, desktop) a plain new tab is already "outside".
  */

@@ -104,7 +104,7 @@ export async function searchTorrents(query: string, category = 'all', limit = 8)
   const q = query.trim().slice(0, 120);
   if (!q) throw new Error('empty_query');
   const cat = TPB_CATEGORIES[category] ?? 0;
-  const r = await fetch(`${TPB_API}/q.php?q=${encodeURIComponent(q)}&cat=${cat}`, { headers: { 'User-Agent': 'Mozilla/5.0 (MinisManager)' }, signal: AbortSignal.timeout(15_000) });
+  const r = await fetch(`${TPB_API}/q.php?q=${encodeURIComponent(q)}&cat=${cat}`, { headers: { 'User-Agent': 'Mozilla/5.0 (NovaOS)' }, signal: AbortSignal.timeout(15_000) });
   if (!r.ok) throw new Error(`search_failed_${r.status}`);
   const rows = ((await r.json()) as TpbRow[]).filter((x) => x.id !== '0' && x.info_hash && !/^0+$/.test(x.info_hash) && !x.category.startsWith('5'));
   const results = rows

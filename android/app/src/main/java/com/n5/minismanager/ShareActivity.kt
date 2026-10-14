@@ -18,7 +18,7 @@ import java.util.UUID
 import kotlin.concurrent.thread
 
 /**
- * "Send to MinisManager" from any app: a magnet or torrent link goes to qBittorrent (and into Jellyfin when
+ * "Send to NovaOS" from any app: a magnet or torrent link goes to qBittorrent (and into Jellyfin when
  * done), a web link is downloaded with yt-dlp (video or audio), files are uploaded to Files.
  * Uses the session the user signed in with inside the app.
  */

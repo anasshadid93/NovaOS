@@ -1,6 +1,6 @@
 /*
  * Orb — from ElevenLabs UI (https://github.com/elevenlabs/ui, registry/elevenlabs-ui/ui/orb.tsx).
- * Changes for MinisManager: the noise texture is our own file (/orb-noise.png) loaded with
+ * Changes for NovaOS: the noise texture is our own file (/orb-noise.png) loaded with
  * three's TextureLoader instead of drei's useTexture from their CDN.
  *
  * MIT License

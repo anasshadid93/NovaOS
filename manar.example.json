@@ -5,7 +5,7 @@
   "rpId": "my-server.tailnet-name.ts.net",
   "tailscaleHost": "my-server.tailnet-name.ts.net",
   "timezone": "Europe/Berlin",
-  "brand": "MinisManager",
+  "brand": "NovaOS",
   "dataRoot": "/srv/data",
   "appsDir": "/srv/apps",
   "mediaRoot": "/srv/data/external/BigDisk",
@@ -18,6 +18,6 @@
   "telegramOwner": 0,
   "ytDlp": "yt-dlp",
   "dwg2dxf": "dwg2dxf",
-  "backupSources": ["~/MinisManager/var", "/srv/data/apps", "/srv/data/files"],
+  "backupSources": ["~/NovaOS/var", "/srv/data/apps", "/srv/data/files"],
   "backupExcludes": ["node_modules", ".cache", "*.log"]
 }

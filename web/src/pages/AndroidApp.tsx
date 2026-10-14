@@ -31,7 +31,7 @@ export function AndroidApp() {
           <Card title={t('android.download')}>
             <div className="space-y-3 text-sm">
               {info.local && (
-                <a href="/api/app/apk" download="MinisManager.apk" className={`${btn} bg-primary text-white`}>
+                <a href="/api/app/apk" download="NovaOS.apk" className={`${btn} bg-primary text-white`}>
                   <ArrowDownload24Filled aria-hidden />
                   {t('android.downloadLocal', { size: formatBytes(info.local.size) })}
                 </a>

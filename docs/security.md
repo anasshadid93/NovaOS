@@ -21,14 +21,14 @@ Two layers:
 2. The server requires a **step-up**. Routes guarded with `requireElevated` return `403 confirm_required` unless the session was confirmed with a passkey or TOTP in the last 5 minutes. The client then prompts and retries.
 
 ## Root access
-- MinisManager runs as the service user chosen at install time. The only root path is `/usr/local/sbin/manar-helper` via a single `NOPASSWD` sudoers line. There is no open `sudo`.
+- NovaOS runs as the service user chosen at install time. The only root path is `/usr/local/sbin/manar-helper` via a single `NOPASSWD` sudoers line. There is no open `sudo`.
 - The helper allows exactly:
   - power: `reboot`, `poweroff`, `suspend`, `schedule reboot|poweroff <1–10080 min>`, `cancel-schedule`
   - services: `systemctl start|stop|restart <unit>`
   - processes: `kill TERM|KILL|HUP <pid>`
   - read-only: `smartctl <disk>`, `ports` (`ss -tulpn`), `ufw-status`
   - memory: `drop-caches` ("Release memory": `sync` then drop page cache, dentries and inodes)
-  - drives: `mount-ext <partition>` / `umount-ext <partition>` (never the system disk; vfat/exfat/ext*/btrfs/xfs only; mounted `nosuid,nodev,noexec` under `/srv/data/external/<name>`; unmount only what MinisManager mounted; runs in the host mount namespace via `nsenter` so mounts are visible outside manar.service's private namespace; removable drives are auto-mounted on plug-in by a /proc/partitions watcher, and stale mounts of pulled-out drives are lazily detached)
+  - drives: `mount-ext <partition>` / `umount-ext <partition>` (never the system disk; vfat/exfat/ext*/btrfs/xfs only; mounted `nosuid,nodev,noexec` under `/srv/data/external/<name>`; unmount only what NovaOS mounted; runs in the host mount namespace via `nsenter` so mounts are visible outside manar.service's private namespace; removable drives are auto-mounted on plug-in by a /proc/partitions watcher, and stale mounts of pulled-out drives are lazily detached)
   - apps: `ts-serve <20000–29999> on|off` (publish an app port on the tailnet), `rm-appdata <app-id>` (only `/srv/data/apps/<id>`, realpath-checked)
 - Every argument is validated twice, in `server/src/helper.ts` and in the helper itself.
 - Units that must never be stopped from the phone are refused: ssh, tailscaled, systemd-*, dbus, polkit, manar. Kernel threads and processes in those units cannot be killed.
@@ -49,4 +49,4 @@ CSP `default-src 'self'` (no inline scripts), `frame-ancestors 'none'`, `X-Frame
 - Apps that forbid framing (Nova/OpenClaw, Infinity: `X-Frame-Options`/`frame-ancestors`) are **not** proxied
   around that protection; they open in a browser tab.
 - Plain-http services of your own can be published as HTTPS on the tailnet with `tailscale serve` and listed in `var/services.json`.
-- ArtCraft apps are served on their own origin (:7444) and allow framing only by MinisManager.
+- ArtCraft apps are served on their own origin (:7444) and allow framing only by NovaOS.

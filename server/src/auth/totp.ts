@@ -7,7 +7,7 @@ export function newTotpSecret(): string {
 }
 
 export function totpUri(username: string, secret: string): string {
-  return authenticator.keyuri(username, 'MinisManager (the server)', secret);
+  return authenticator.keyuri(username, 'NovaOS (the server)', secret);
 }
 
 /**

@@ -1,7 +1,7 @@
 {
-  "name": "MinisManager — n5",
-  "short_name": "MinisManager",
-  "description": "MinisManager — manage the n5 server from your phone",
+  "name": "NovaOS",
+  "short_name": "NovaOS",
+  "description": "NovaOS — manage your home server from your phone",
   "id": "/",
   "start_url": "/",
   "scope": "/",

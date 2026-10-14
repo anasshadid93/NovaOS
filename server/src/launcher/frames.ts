@@ -1,9 +1,9 @@
 import { config } from '../config.js';
 
 /**
- * Can a launcher app be shown inside a MinisManager desktop window (an iframe)?
+ * Can a launcher app be shown inside a NovaOS desktop window (an iframe)?
  * Decided from the app's own response headers, the same way the browser will:
- *  - MinisManager is HTTPS, so a plain-http app can't load in it;
+ *  - NovaOS is HTTPS, so a plain-http app can't load in it;
  *  - X-Frame-Options DENY/SAMEORIGIN, or a CSP frame-ancestors without our origin, forbid it.
  * Apps that say no open in a browser tab instead.
  */

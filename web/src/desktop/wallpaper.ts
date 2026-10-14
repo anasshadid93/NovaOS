@@ -21,7 +21,7 @@ const glow = (a: string, b: string, base: string) => `radial-gradient(1200px 700
 export const PRESETS: Preset[] = [
   {
     id: 'minis',
-    name: 'MinisManager',
+    name: 'NovaOS',
     light: glow('rgb(47 111 228 / 0.18)', 'rgb(26 58 124 / 0.16)', 'linear-gradient(160deg, #eef3fb, #f7f9fd 45%, #e7eefb)'),
     dark: glow('rgb(47 111 228 / 0.25)', 'rgb(26 58 124 / 0.35)', 'linear-gradient(160deg, #0d1424, #111a2e 45%, #0b1220)'),
   },

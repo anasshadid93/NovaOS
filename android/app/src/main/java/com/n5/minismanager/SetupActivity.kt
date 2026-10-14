@@ -129,7 +129,7 @@ class SetupActivity : AppCompatActivity() {
             prefs.ntfyToken = null
             prefs.ntfySince = null
         }
-        // The notification service starts once MinisManager is signed in (it needs the session for its settings).
+        // The notification service starts once NovaOS is signed in (it needs the session for its settings).
         startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK))
         finish()
     }

@@ -35,7 +35,7 @@ import {
 } from './strategy.js';
 
 /**
- * Trade Bot engine (paper trading, fake money) — runs inside MinisManager so it trades around the
+ * Trade Bot engine (paper trading, fake money) — runs inside NovaOS so it trades around the
  * clock on live Binance USDⓈ-M futures prices; nothing is ever sent to an exchange.
  *
  * Files shared with the Trade Bot page (~/ArtCraft/tradebot, a writable craft app), in data/:
@@ -236,7 +236,7 @@ export type BrainPos = Position & { keys?: string[]; labels?: Record<string, str
 /**
  * Heavy jobs (backtests, hyperopt, walk-forward, training) run as their own process in a systemd
  * scope with its own memory cap and a lower CPU share: a job that runs out of memory stops alone
- * instead of taking MinisManager (capped at 512 MB) down with it. The input goes through a file,
+ * instead of taking NovaOS (capped at 512 MB) down with it. The input goes through a file,
  * messages come back as JSON lines on stdout.
  */
 function spawnJob(input: JobInput): ChildProcess {
@@ -298,7 +298,7 @@ class Engine {
     try {
       this.job = JSON.parse(fs.readFileSync(file('job.json'), 'utf8')) as JobState;
       if (this.job?.status === 'running') {
-        this.job = { ...this.job, status: 'cancelled', endedAt: Date.now(), note: 'MinisManager restarted' };
+        this.job = { ...this.job, status: 'cancelled', endedAt: Date.now(), note: 'NovaOS restarted' };
         this.writeJob();
       }
     } catch {
@@ -847,7 +847,7 @@ class Engine {
     w.on('exit', (code, signal) => {
       if (this.worker !== w) return;
       this.worker = null;
-      if (this.job?.status === 'running') this.finishJob('error', null, signal === 'SIGKILL' || code === 137 ? 'the job ran out of memory (it was stopped; MinisManager is fine)' : `job exited (${code ?? signal}) ${errText.split('\n').filter(Boolean).at(-1) ?? ''}`.trim());
+      if (this.job?.status === 'running') this.finishJob('error', null, signal === 'SIGKILL' || code === 137 ? 'the job ran out of memory (it was stopped; NovaOS is fine)' : `job exited (${code ?? signal}) ${errText.split('\n').filter(Boolean).at(-1) ?? ''}`.trim());
     });
     return { ok: true, job: this.job.id };
   }

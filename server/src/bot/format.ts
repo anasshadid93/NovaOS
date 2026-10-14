@@ -54,7 +54,7 @@ export function formatReply(output: string, heard = ''): { html: string; fallbac
   };
 }
 
-/** Messages MinisManager posts to the assistant's inbox (downloads, alerts, reminders) → Telegram HTML. */
+/** Messages NovaOS posts to the assistant's inbox (downloads, alerts, reminders) → Telegram HTML. */
 export function formatEvent(d: Record<string, unknown>): { text: string } {
   const s = (v: unknown) => esc(String(v ?? ''));
   if (d.type === 'alert' || d.type === 'notice') return { text: String(d.text ?? '').slice(0, LIMIT) };

@@ -15,7 +15,7 @@ import { MIME, sendFile } from '../files/routes.js';
 import { registerDropPublic } from './dropbox.js';
 
 /**
- * Share links. MinisManager (tailnet only) creates them; a second, tiny server on
+ * Share links. NovaOS (tailnet only) creates them; a second, tiny server on
  * 127.0.0.1:7475 serves *only* the shared files, and that one is published on the internet
  * (VPS Traefik → the server over Tailscale). It has no login, no API, no scripts: a link is a random
  * token, optionally with a password and an expiry, and it can never reach outside its folder.
@@ -106,7 +106,7 @@ const STR = {
     expires: 'Link expires',
     empty: 'This folder is empty.',
     tooMany: 'Showing the first {n} items.',
-    footer: 'Shared from MinisManager',
+    footer: 'Shared from NovaOS',
     back: 'Back',
   },
   ar: {
@@ -119,7 +119,7 @@ const STR = {
     expires: 'الرابط بينتهي',
     empty: 'هالمجلد فاضي.',
     tooMany: 'عم نعرض أول {n} عنصر.',
-    footer: 'مشارك من MinisManager',
+    footer: 'مشارك من NovaOS',
     back: 'رجوع',
   },
 } satisfies Record<Lang, Record<string, string>>;
@@ -233,7 +233,7 @@ function passwordPage(s: Share, lang: Lang, wrong: boolean) {
   const t = STR[lang];
   return page(
     lang,
-    'MinisManager',
+    'NovaOS',
     `<div class="card" style="max-width:420px;margin:12vh auto 0">${LOCK}<p>${esc(t.password)}</p>${wrong ? `<p class="err">${esc(t.wrong)}</p>` : ''}
 <form method="post" action="/s/${s.token}/unlock"><input type="password" name="password" autocomplete="current-password" required autofocus><button class="btn" type="submit">${esc(t.open)}</button></form></div>`,
   );
@@ -371,7 +371,7 @@ export async function buildShareServer(): Promise<FastifyInstance> {
   return app;
 }
 
-/** A link for a file created by MinisManager itself (e.g. a finished download). */
+/** A link for a file created by NovaOS itself (e.g. a finished download). */
 export function createShareFor(rel: string, days: number, userId: number | null = null): string {
   const abs = resolveInRoot(rel);
   const token = crypto.randomBytes(16).toString('base64url');
@@ -383,7 +383,7 @@ export function createShareFor(rel: string, days: number, userId: number | null 
 }
 
 // ---------------------------------------------------------------------------------------------
-// MinisManager side: create, list, remove.
+// NovaOS side: create, list, remove.
 
 export async function shareRoutes(app: FastifyInstance) {
   app.get('/api/shares', { preHandler: requireAuth }, async () => {

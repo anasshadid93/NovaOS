@@ -13,13 +13,13 @@ const app = await buildApp();
 await finishSelfUpdate('boot', app.log);
 
 const setupToken = ensureSetupToken();
-if (setupToken) app.log.warn(`No account yet. Open MinisManager and use the setup token in ${config.dataDir}/setup-token`);
+if (setupToken) app.log.warn(`No account yet. Open NovaOS and use the setup token in ${config.dataDir}/setup-token`);
 
 await app.listen({ host: config.host, port: config.port });
 await finishSelfUpdate('listening', app.log);
 warmIndex();
 
-// ArtCraft apps on their own origin (see craft/craft.ts). Optional: MinisManager runs without it.
+// ArtCraft apps on their own origin (see craft/craft.ts). Optional: NovaOS runs without it.
 const craft = process.env.MANAR_CRAFT === '0' ? null : await buildCraftServer();
 await craft?.listen({ host: config.host, port: config.craftPort }).catch((err) => app.log.error({ err }, 'ArtCraft server did not start'));
 

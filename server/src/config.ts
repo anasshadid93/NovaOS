@@ -59,11 +59,11 @@ export const config = {
   hostname,
   port: num('MANAR_PORT', 'port', 7470),
   /** Name shown in the UI, notifications and the Android app. */
-  brand: str('MANAR_BRAND', 'brand', 'MinisManager'),
+  brand: str('MANAR_BRAND', 'brand', 'NovaOS'),
   /** Public origin users reach the app at (tailscale serve HTTPS, or a reverse proxy). */
   publicOrigin,
   rpId: str('MANAR_RP_ID', 'rpId', new URL(publicOrigin).hostname),
-  rpName: str('MANAR_BRAND', 'brand', 'MinisManager'),
+  rpName: str('MANAR_BRAND', 'brand', 'NovaOS'),
   dataDir,
   webDist: env.MANAR_WEB_DIST ?? path.join(repoRoot, 'web', 'dist'),
   helperPath: str('MANAR_HELPER', 'helperPath', '/usr/local/sbin/manar-helper'),

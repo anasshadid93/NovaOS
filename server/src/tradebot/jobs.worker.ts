@@ -8,7 +8,7 @@ import type { Candle } from './strategy.js';
 
 /**
  * Worker thread for the Trade Bot's backtests and hyperopt runs, so the heavy replay never slows
- * MinisManager. Downloads Binance USDⓈ-M 1-minute candles and funding rates (public endpoints,
+ * NovaOS. Downloads Binance USDⓈ-M 1-minute candles and funding rates (public endpoints,
  * cached on disk) and posts progress and results back to the engine.
  */
 export interface JobInput {

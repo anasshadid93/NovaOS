@@ -47,7 +47,7 @@ import { WIDGET_SPACE, WIDGETS, WidgetColumn, toggleWidget, useWidgets, widgetTi
 import { setDesktopPref } from './mode';
 import { TASKBAR_H, useWindows, wm, type Win } from './wm';
 
-/** Something that can be opened: one of MinisManager's screens or a web app from the launcher. */
+/** Something that can be opened: one of NovaOS's screens or a web app from the launcher. */
 export type Entry = { kind: 'desk'; app: DeskApp; title: string } | { kind: 'web'; item: LauncherItem; title: string };
 
 export function EntryIcon({ e, size }: { e: Entry; size: number }) {

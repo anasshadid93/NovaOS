@@ -58,10 +58,10 @@ describe('I18nProvider', () => {
         <Probe n={3} />
       </I18nProvider>,
     );
-    expect(screen.getByTestId('out').textContent).toBe('MinisManager|ltr|3 files');
+    expect(screen.getByTestId('out').textContent).toBe('NovaOS|ltr|3 files');
     expect(document.documentElement.dir).toBe('ltr');
     act(() => screen.getByText('ar').click());
-    expect(screen.getByTestId('out').textContent).toBe('MinisManager|rtl|3 ملفات');
+    expect(screen.getByTestId('out').textContent).toBe('NovaOS|rtl|3 ملفات');
     expect(document.documentElement.lang).toBe('ar');
     expect(document.documentElement.dir).toBe('rtl');
     expect(localStorage.getItem('manar.locale')).toBe('ar');
@@ -80,6 +80,6 @@ describe('I18nProvider', () => {
         <Probe n={n} />
       </I18nProvider>,
     );
-    expect(screen.getByTestId('out').textContent).toBe(`MinisManager|rtl|${expected}`);
+    expect(screen.getByTestId('out').textContent).toBe(`NovaOS|rtl|${expected}`);
   });
 });

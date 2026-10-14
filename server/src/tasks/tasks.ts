@@ -62,7 +62,7 @@ export function taskCounts() {
 /** On startup: anything left "running" by a crash is marked failed; prune old records. */
 export function recoverTasks() {
   getDb()
-    .prepare("UPDATE tasks SET status = 'failed', error = 'interrupted (MinisManager restarted)', finished_at = ? WHERE status = 'running'")
+    .prepare("UPDATE tasks SET status = 'failed', error = 'interrupted (NovaOS restarted)', finished_at = ? WHERE status = 'running'")
     .run(Date.now());
   getDb().prepare("DELETE FROM tasks WHERE finished_at IS NOT NULL AND finished_at < ?").run(Date.now() - 7 * 86400_000);
   setImmediate(pump);

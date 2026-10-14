@@ -18,7 +18,7 @@ import androidx.core.content.ContextCompat
 import com.n5.minismanager.databinding.ActivitySettingsBinding
 import kotlin.concurrent.thread
 
-/** App settings: server, notifications, fingerprint lock, version. MinisManager's own settings stay in the web app. */
+/** App settings: server, notifications, fingerprint lock, version. NovaOS's own settings stay in the web app. */
 class SettingsActivity : AppCompatActivity() {
     private lateinit var b: ActivitySettingsBinding
     private lateinit var prefs: Prefs
@@ -81,7 +81,7 @@ class SettingsActivity : AppCompatActivity() {
         prefs.notifications = on
         if (on) {
             NotifyService.start(this)
-            if (prefs.ntfyUrl.isNullOrBlank()) Toast.makeText(this, "Open MinisManager once while signed in to finish connecting.", Toast.LENGTH_LONG).show()
+            if (prefs.ntfyUrl.isNullOrBlank()) Toast.makeText(this, "Open NovaOS once while signed in to finish connecting.", Toast.LENGTH_LONG).show()
         } else {
             NotifyService.stop(this)
         }

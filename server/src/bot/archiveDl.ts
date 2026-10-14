@@ -159,7 +159,7 @@ export function startArchiveDownloads(): () => void {
   return () => clearInterval(t);
 }
 
-// ---- control and a live view, for MinisManager's Downloads page ------------------------------------
+// ---- control and a live view, for NovaOS's Downloads page ------------------------------------
 /** Pause stops the files in flight (their .part stays, so a resume continues them); resume restarts. */
 export function setJobPaused(id: string, paused: boolean): ArchiveJob | null {
   const all = archiveJobs();

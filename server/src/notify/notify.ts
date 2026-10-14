@@ -113,7 +113,7 @@ export async function notify(title: string, body: string, url = '/') {
   const s = getSettings();
   const jobs: Promise<unknown>[] = [];
   if (s.push) jobs.push(sendPush(title, body, url));
-  if (s.whatsapp.enabled && s.whatsapp.to) jobs.push(sendWhatsApp(s.whatsapp.to, `MinisManager · ${title}\n${body}`));
+  if (s.whatsapp.enabled && s.whatsapp.to) jobs.push(sendWhatsApp(s.whatsapp.to, `NovaOS · ${title}\n${body}`));
   const results = await Promise.allSettled(jobs);
   getDb()
     .prepare('INSERT INTO audit(ts, user_id, action, detail) VALUES(?, NULL, ?, ?)')
@@ -175,7 +175,7 @@ async function securityAlert(): Promise<Omit<Alert, 'since'> | null> {
   if (!updatesCache?.security) return null;
   const names = updatesCache.names.slice(0, 5).join(', ');
   // The key carries the package list, so a new security update is a new message.
-  return { key: `security:${updatesCache.names.join(',')}`, kind: 'security', severity: 'warning', title: `${updatesCache.security} security update(s)`, detail: names, ar: `🛡️ في ${updatesCache.security === 1 ? 'تحديث أمني جديد' : `${updatesCache.security} تحديثات أمنية`} لـ the server: <code>${names}</code>\nبتثبّتهم من MinisManager ← التحديثات.` };
+  return { key: `security:${updatesCache.names.join(',')}`, kind: 'security', severity: 'warning', title: `${updatesCache.security} security update(s)`, detail: names, ar: `🛡️ في ${updatesCache.security === 1 ? 'تحديث أمني جديد' : `${updatesCache.security} تحديثات أمنية`} لـ the server: <code>${names}</code>\nبتثبّتهم من NovaOS ← التحديثات.` };
 }
 
 export async function checkAlerts(): Promise<Alert[]> {

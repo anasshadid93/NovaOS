@@ -1,14 +1,14 @@
-# NovaOS · MinisManager
+# NovaOS
 
 **Turn a mini PC into a home server you run from your phone.**
 
-MinisManager is a mobile-first web app (and an Android app) that manages a Linux box end to end:
+NovaOS is a mobile-first web app (and an Android app) that manages a Linux box end to end:
 files and photos, a media library, an app store of self-hosted services, retro-game streaming,
-backups, monitoring and power, all behind Tailscale with passkey sign-in. NovaOS is the engine
-underneath it: the server, the installer and the update system.
+backups, monitoring and power, all behind Tailscale with passkey sign-in. One installer, one
+setup wizard, updates from GitHub Releases with rollback.
 
 <p align="center">
-  <img src="docs/brand/preview-1024.png" alt="MinisManager on a phone" width="720">
+  <img src="docs/brand/preview-1024.png" alt="NovaOS on a phone" width="720">
 </p>
 
 ## What you get
@@ -20,7 +20,7 @@ underneath it: the server, the installer and the update system.
 - **Games**: ROMs streamed to any TV or phone with Sunshine + Moonlight, an always-on EmulationStation, covers, favorites, save restore and launch-from-phone.
 - **Downloads**: paste any link (direct, YouTube/yt-dlp, torrent) and it lands on the big drive.
 - **Backup**: nightly restic snapshots of your data and app configs, with browse and restore.
-- **Health, Monitor, Network, Docker, Processes, Updates, Power**: the whole machine from one screen, including SMART, temperatures, Tailscale peers, system packages, and a self-update of MinisManager from GitHub Releases with rollback.
+- **Health, Monitor, Network, Docker, Processes, Updates, Power**: the whole machine from one screen, including SMART, temperatures, Tailscale peers, system packages, and a self-update of NovaOS from GitHub Releases with rollback.
 - **Desktop mode**: on a laptop or TV browser it becomes a window manager with a dock and widgets.
 - **Android app**: phones and Android TV; notifications from the server, "share to server" from any app, fingerprint lock.
 - **Arabic and English**, right-to-left done properly.

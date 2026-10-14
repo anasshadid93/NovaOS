@@ -118,7 +118,7 @@ async function openDirect(raw: string, init: RequestInit, signal: AbortSignal): 
   let url = raw;
   for (let hop = 0; hop < 6; hop++) {
     await checkUrl(url);
-    const r = await fetch(url, { ...init, redirect: 'manual', signal, headers: { 'user-agent': 'Mozilla/5.0 MinisManager', ...(init.headers ?? {}) } });
+    const r = await fetch(url, { ...init, redirect: 'manual', signal, headers: { 'user-agent': 'Mozilla/5.0 NovaOS', ...(init.headers ?? {}) } });
     const loc = r.headers.get('location');
     if (r.status >= 300 && r.status < 400 && loc) {
       url = new URL(loc, url).toString();

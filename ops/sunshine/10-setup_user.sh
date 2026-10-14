@@ -10,7 +10,7 @@ if [[ "${UNAME}" != "root" ]]; then
     UMASK="${UMASK:-000}"
 
     gow_log "Setting default user uid=${PUID}(${UNAME}) gid=${PGID}(${UNAME})"
-    # MinisManager: this container is long-lived and restarts keep the user, so never delete it:
+    # NovaOS: this container is long-lived and restarts keep the user, so never delete it:
     # `userdel -r` would wipe the bind-mounted home (cores, emulators, settings).
     if [[ "$(id -nu "${PUID}" 2>/dev/null)" == "${UNAME}" ]]; then
         gow_log "User ${UNAME} already set up, keeping it"

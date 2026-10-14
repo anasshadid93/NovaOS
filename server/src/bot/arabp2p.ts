@@ -14,7 +14,7 @@ import { remember } from './torrentHistory.js';
  */
 
 const BASE = 'https://www.arabp2p.net';
-const UA = 'Mozilla/5.0 (X11; Linux x86_64) MinisManager';
+const UA = 'Mozilla/5.0 (X11; Linux x86_64) NovaOS';
 const jar = () => path.join(config.dataDir, 'arabp2p.cookies');
 export const MIN_RATIO = 1.0;
 

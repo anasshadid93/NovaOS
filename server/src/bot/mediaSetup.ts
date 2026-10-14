@@ -14,7 +14,7 @@ import { config } from '../config.js';
  *  3. Jellyfin: the Toshiba's Media mounted, one library per folder (Arabic subtitles), the old
  *     "Torrents" library removed;
  *  4. films from files/Videos moved onto the Toshiba into Movies;
- *  5. the library turned on (MinisManager's mediaLibrary.ts sorts every finished torrent from then on).
+ *  5. the library turned on (NovaOS's mediaLibrary.ts sorts every finished torrent from then on).
  * Compose files are backed up next to themselves first. `--dry-run` only prints the plan.
  * Usage: node dist/bot/mediaSetup.js [--dry-run]
  */

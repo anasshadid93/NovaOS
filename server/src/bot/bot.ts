@@ -255,7 +255,7 @@ export async function buildBotServer(): Promise<FastifyInstance> {
   const appErr = (reply: FastifyReply, e: unknown) => reply.code(422).send({ error: (e as Error).message });
   app.post<{ Body: { link?: string } }>('/torrent', async (req, reply) => addTorrent(String(req.body?.link ?? '')).catch((e) => appErr(reply, e)));
   app.get('/torrents', async (_req, reply) => listTorrents().catch((e) => appErr(reply, e)));
-  // Telegram commands answered by MinisManager itself (n8n passes the update): /torrent, /torrents, /sub.
+  // Telegram commands answered by NovaOS itself (n8n passes the update): /torrent, /torrents, /sub.
   const stopSubs = startSubTranslator();
   app.addHook('onClose', async () => stopSubs());
   app.post<{ Body: Record<string, unknown> }>('/commands/update', { bodyLimit: 64 * 1024 }, async (req) => {
@@ -277,7 +277,7 @@ export async function buildBotServer(): Promise<FastifyInstance> {
     return { queued: enqueue(items[0].id, items[0].name), others: items.slice(1).map((x) => x.name) };
   });
   app.get('/subtitles/jobs', async () => ({ jobs: jobs().slice(-10) }));
-  // /torrent and its buttons: n8n passes the Telegram update; MinisManager answers on Telegram itself.
+  // /torrent and its buttons: n8n passes the Telegram update; NovaOS answers on Telegram itself.
   app.post<{ Body: Record<string, unknown> }>('/torrent/update', { bodyLimit: 64 * 1024 }, async (req) => torrentUpdate((req.body ?? {}) as never).catch((e: Error) => ({ ok: false, did: e.message.slice(0, 120) })));
   app.get<{ Querystring: { q?: string; cat?: string; limit?: string } }>('/torrents/search', async (req, reply) => searchTorrents(String(req.query.q ?? ''), String(req.query.cat ?? 'all'), Number(req.query.limit) || 8).catch((e) => appErr(reply, e)));
   app.post<{ Body: { path?: string } }>('/paperless/file', async (req, reply) => paperlessFile(String(req.body?.path ?? '')).catch((e) => appErr(reply, e)));
@@ -463,7 +463,7 @@ export async function buildBotServer(): Promise<FastifyInstance> {
   return app;
 }
 
-/** MinisManager side: turn the bot token on (rotate) or off. */
+/** NovaOS side: turn the bot token on (rotate) or off. */
 export async function botRoutes(app: FastifyInstance) {
   if (!process.env.VITEST) {
     const stop = startPersonalLoop();

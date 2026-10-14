@@ -7,7 +7,7 @@ import { addTorrent } from '../bot/apps.js';
 import { startDownload } from '../downloads/downloads.js';
 
 /**
- * The MinisManager Android app (phones and Android TV, android/ in this repo). It shows this web app
+ * The NovaOS Android app (phones and Android TV, android/ in this repo). It shows this web app
  * in a WebView and adds what a browser can't: notifications through ntfy (self-hosted on the server, no
  * Firebase), "Share to the server" from any app, and a biometric lock. This module gives the app its
  * notification settings and takes shared links; files are uploaded through /api/fs/upload.
@@ -55,7 +55,7 @@ export function toNotification(p: Record<string, unknown>): { title: string; mes
   }
   if (type === 'notice') {
     const text = decode(String(p.text ?? ''));
-    return text ? { title: 'MinisManager', message: text, priority: 3, tags: [], click: config.publicOrigin } : null;
+    return text ? { title: 'NovaOS', message: text, priority: 3, tags: [], click: config.publicOrigin } : null;
   }
   if (type === 'download') {
     const done = p.status === 'done';
@@ -90,8 +90,8 @@ export async function publishNtfy(p: Record<string, unknown>): Promise<boolean> 
 }
 
 const MAGNET = /^magnet:\?xt=urn:bt[im]h:/i;
-/** A locally provided APK (var/MinisManager.apk) wins over the GitHub release download. */
-const apkFile = () => path.join(config.dataDir, 'MinisManager.apk');
+/** A locally provided APK (var/NovaOS.apk) wins over the GitHub release download. */
+const apkFile = () => path.join(config.dataDir, 'NovaOS.apk');
 
 export async function mobileRoutes(app: FastifyInstance) {
   app.get('/api/app/info', { preHandler: requireAuth }, async () => {
@@ -102,13 +102,13 @@ export async function mobileRoutes(app: FastifyInstance) {
     } catch {
       /* no local apk */
     }
-    return { local, github: `https://github.com/${config.updateRepo}/releases/latest/download/MinisManager.apk`, repo: config.updateRepo, origin: config.publicOrigin };
+    return { local, github: `https://github.com/${config.updateRepo}/releases/latest/download/NovaOS.apk`, repo: config.updateRepo, origin: config.publicOrigin };
   });
   app.get('/api/app/apk', { preHandler: requireAuth }, async (_req, reply) => {
     if (!fs.existsSync(apkFile())) return reply.code(404).send({ error: 'no_apk' });
     return reply
       .header('Content-Type', 'application/vnd.android.package-archive')
-      .header('Content-Disposition', 'attachment; filename="MinisManager.apk"')
+      .header('Content-Disposition', 'attachment; filename="NovaOS.apk"')
       .header('Content-Length', String(fs.statSync(apkFile()).size))
       .send(fs.createReadStream(apkFile()));
   });

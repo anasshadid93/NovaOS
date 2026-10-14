@@ -10,7 +10,7 @@ import { config } from '../config.js';
 import { enqueue, registerTask } from '../tasks/tasks.js';
 
 /**
- * Updating MinisManager itself from GitHub Releases, with a way back.
+ * Updating NovaOS itself from GitHub Releases, with a way back.
  *
  *   check   → the newest release of `updateRepo` (tag, notes, source tarball)
  *   update  → task: download the tarball into var/updates/staging, `npm ci` + build there, keep a
@@ -104,7 +104,7 @@ export async function latestRelease(force = false): Promise<{ at: number; releas
   if (!force && cached && Date.now() - cached.at < 10 * 60_000) return cached;
   const url = config.updateFeed || `https://api.github.com/repos/${config.updateRepo}/releases/latest`;
   try {
-    const res = await fetch(url, { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'MinisManager' }, signal: AbortSignal.timeout(15_000) });
+    const res = await fetch(url, { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'NovaOS' }, signal: AbortSignal.timeout(15_000) });
     if (res.status === 404) return (cached = { at: Date.now(), release: null, error: 'no_releases' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const j = (await res.json()) as { tag_name?: string; name?: string; body?: string; published_at?: string; tarball_url?: string; html_url?: string; draft?: boolean; prerelease?: boolean };
@@ -172,7 +172,7 @@ registerTask('system.selfUpdate', async (ctx, params) => {
 
   ctx.progress('download');
   ctx.log(`Downloading ${tarball}`);
-  const res = await fetch(tarball, { headers: { 'User-Agent': 'MinisManager' }, redirect: 'follow', signal: AbortSignal.timeout(600_000) });
+  const res = await fetch(tarball, { headers: { 'User-Agent': 'NovaOS' }, redirect: 'follow', signal: AbortSignal.timeout(600_000) });
   if (!res.ok || !res.body) throw new Error(`download failed: HTTP ${res.status}`);
   const { Readable } = await import('node:stream');
   const { pipeline } = await import('node:stream/promises');
@@ -183,7 +183,7 @@ registerTask('system.selfUpdate', async (ctx, params) => {
   await ctx.run('tar', ['-xzf', tgz, '-C', stage]);
   const src = sourceRoot(stage);
   const pkg = readJson<{ version?: string; name?: string }>(path.join(src, 'package.json'));
-  if (pkg?.name !== 'manar') throw new Error('that tarball is not MinisManager');
+  if (pkg?.name !== 'manar') throw new Error('that tarball is not NovaOS');
 
   ctx.progress('install');
   ctx.log('npm ci');
@@ -204,7 +204,7 @@ registerTask('system.selfUpdate', async (ctx, params) => {
   writeJson(RELEASE(), { tag, at: Date.now() });
   writeJson(PENDING(), { tag, from, attempts: 0, at: Date.now() } satisfies Pending);
   fs.rmSync(STAGING(), { recursive: true, force: true });
-  ctx.log('Restarting MinisManager');
+  ctx.log('Restarting NovaOS');
   restart();
 });
 
@@ -266,7 +266,7 @@ export async function selfUpdateRoutes(app: FastifyInstance) {
     if (!release) return reply.code(503).send({ error: error ?? 'no_release' });
     if (await localChanges()) return reply.code(409).send({ error: 'local_changes' });
     audit(req.session!.userId, 'self_update', { tag: release.tag });
-    return { task: enqueue('system.selfUpdate', `Update MinisManager to ${release.tag}`, { tag: release.tag, tarball: release.tarball }) };
+    return { task: enqueue('system.selfUpdate', `Update NovaOS to ${release.tag}`, { tag: release.tag, tarball: release.tarball }) };
   });
 
   app.post('/api/updates/self/rollback', { preHandler: requireElevated }, async (req, reply) => {

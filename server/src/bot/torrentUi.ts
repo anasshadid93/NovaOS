@@ -7,7 +7,7 @@ import { archiveStatus } from './archiveDl.js';
 import { addApTorrent, latest as apLatest, search as apSearch, type ApItem } from './arabp2p.js';
 
 /**
- * /torrent on Telegram, answered by MinisManager itself (n8n only passes the update along), so it
+ * /torrent on Telegram, answered by NovaOS itself (n8n only passes the update along), so it
  * never goes through the AI: a menu (new films/series in the last 48 h, all-time top, music, games,
  * apps), search, pages of 5 with ⬇️ buttons, and nothing he already downloaded — by the torrent's
  * hash, and by title + year / episode so another release of the same film is hidden too.
@@ -129,7 +129,7 @@ export function cleanRows(rows: TpbRow[]): Item[] {
     .filter((x) => (seen.has(x.hash) ? false : (seen.add(x.hash), true)));
 }
 async function tpb(path: string): Promise<TpbRow[]> {
-  const r = await fetch(`${TPB_API}/${path}`, { headers: { 'User-Agent': 'Mozilla/5.0 (MinisManager)' }, signal: AbortSignal.timeout(15_000) });
+  const r = await fetch(`${TPB_API}/${path}`, { headers: { 'User-Agent': 'Mozilla/5.0 (NovaOS)' }, signal: AbortSignal.timeout(15_000) });
   if (!r.ok) throw new Error(`tpb_${r.status}`);
   return (await r.json()) as TpbRow[];
 }

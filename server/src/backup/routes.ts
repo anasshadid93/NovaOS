@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../auth/sessions.js';
 import { backupNow, backupState, EXCLUDES, listDir, repoSize, REPO, restore, snapshots, SOURCES } from './backup.js';
 
-/** MinisManager's Backup page: status, history, browsing a snapshot and restoring from it. */
+/** NovaOS's Backup page: status, history, browsing a snapshot and restoring from it. */
 export async function backupRoutes(app: FastifyInstance) {
   // restic and du are slow on a big repository: their answers are kept a minute (the page polls).
   let cache: { at: number; lastAt?: number; snaps: Awaited<ReturnType<typeof snapshots>>; size: number } | null = null;

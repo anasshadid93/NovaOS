@@ -5,7 +5,7 @@ import { archiveSnapshot, fileAction, setJobPaused } from './archiveDl.js';
 import { placed } from './mediaLibrary.js';
 
 /**
- * MinisManager's Downloads page: every torrent in qBittorrent and every Internet Archive item, with
+ * NovaOS's Downloads page: every torrent in qBittorrent and every Internet Archive item, with
  * progress, speed and whether each piece reached the Jellyfin library — and pause/resume, "download
  * next", skip and retry.
  */

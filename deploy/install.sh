@@ -1,5 +1,5 @@
 #!/bin/bash
-# Installs MinisManager's system pieces from an already built checkout. Run as root:
+# Installs NovaOS's system pieces from an already built checkout. Run as root:
 #   sudo deploy/install.sh [--user NAME] [--data-root DIR] [--port N] [--https-port N] [--no-tailscale]
 #   1. /usr/local/sbin/manar-helper   (root:root 0755; the only command the app may run as root)
 #   2. /etc/sudoers.d/manar           (validated with visudo before it goes live)
@@ -51,7 +51,7 @@ if [[ $UNINSTALL -eq 1 ]]; then
     rm -f "$f"
   done
   systemctl daemon-reload
-  echo "MinisManager uninstalled (data in $ROOT/var and $DATA_ROOT kept)."
+  echo "NovaOS uninstalled (data in $ROOT/var and $DATA_ROOT kept)."
   exit 0
 fi
 
@@ -135,7 +135,7 @@ elif [[ $TAILSCALE -eq 1 ]]; then
 fi
 
 echo
-echo "MinisManager is running: $URL"
+echo "NovaOS is running: $URL"
 for _ in $(seq 1 20); do [[ -f $ROOT/var/setup-token ]] && break; sleep 0.5; done
 if [[ -f $ROOT/var/setup-token ]]; then
   echo "First-run setup token: $(cat "$ROOT/var/setup-token")"

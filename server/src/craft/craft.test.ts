@@ -65,10 +65,10 @@ describe('ArtCraft apps', () => {
   it('shows a sign-in hint to visitors without a session', async () => {
     const r = await craft.inject({ url: '/demo/' });
     expect(r.statusCode).toBe(401);
-    expect(r.body).toContain('MinisManager');
+    expect(r.body).toContain('NovaOS');
   });
 
-  it('swaps a launcher ticket for its own cookie (browsers without MinisManager cookies)', async () => {
+  it('swaps a launcher ticket for its own cookie (browsers without NovaOS cookies)', async () => {
     const l = await app.inject({ url: '/api/launcher', headers: { cookie } });
     const url = new URL(l.json().find((i: { key: string }) => i.key === 'craft:demo').url);
     expect(url.searchParams.get('t')).toBeTruthy();

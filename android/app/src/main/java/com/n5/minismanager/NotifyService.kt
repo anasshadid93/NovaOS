@@ -105,7 +105,7 @@ class NotifyService : Service() {
 
     private fun show(m: JSONObject) {
         val priority = m.optInt("priority", 3)
-        val title = m.optString("title").ifBlank { "MinisManager" }
+        val title = m.optString("title").ifBlank { "NovaOS" }
         val body = m.optString("message")
         val id = (m.optString("id").hashCode() and 0x7fffffff)
         val n = NotificationCompat.Builder(this, if (priority >= 4) App.CHANNEL_ALERTS else App.CHANNEL_UPDATES)
@@ -150,7 +150,7 @@ class NotifyService : Service() {
                     doOutput = true
                     connectTimeout = 10_000
                     setRequestProperty("Authorization", "Bearer ${p.ntfyToken}")
-                    setRequestProperty("Title", "MinisManager")
+                    setRequestProperty("Title", "NovaOS")
                     setRequestProperty("Tags", "white_check_mark")
                 }
                 c.outputStream.use { it.write("Notifications are working on this phone.".toByteArray()) }

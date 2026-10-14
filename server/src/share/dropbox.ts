@@ -107,7 +107,7 @@ const STR = {
     wrong: 'Wrong password.',
     open: 'Open',
     left: '{n} files can still be sent',
-    footer: 'MinisManager — files go straight to the owner, nobody else can see them.',
+    footer: 'NovaOS — files go straight to the owner, nobody else can see them.',
   },
   ar: {
     title: 'ابعت ملفات لـ {name}',
@@ -123,7 +123,7 @@ const STR = {
     wrong: 'كلمة السر غلط.',
     open: 'افتح',
     left: 'بعدك فيك تبعت {n} ملف',
-    footer: 'MinisManager — الملفات بتروح لصاحب الرابط مباشرة، وما حدا تاني بيشوفها.',
+    footer: 'NovaOS — الملفات بتروح لصاحب الرابط مباشرة، وما حدا تاني بيشوفها.',
   },
 } satisfies Record<Lang, Record<string, string>>;
 const tr = (lang: Lang, k: keyof (typeof STR)['en'], v: Record<string, string | number> = {}) => STR[lang][k].replace(/\{(\w+)\}/g, (_, x) => String(v[x] ?? ''));
@@ -275,7 +275,7 @@ export function registerDropPublic(app: FastifyInstance) {
   });
 }
 
-// ---- Management (MinisManager, tailnet only) ------------------------------------------------
+// ---- Management (NovaOS, tailnet only) ------------------------------------------------
 
 function view(d: Drop) {
   const now = Date.now();

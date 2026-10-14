@@ -9,7 +9,7 @@ import { getDb, kvGet, kvSet } from '../db.js';
 import { postHook } from '../bot/hook.js';
 
 /**
- * Nightly backups of everything on the server that can't be downloaded again: MinisManager's database and
+ * Nightly backups of everything on the server that can't be downloaded again: NovaOS's database and
  * settings, every app's configuration (n8n workflows, Jellyfin library and artwork, AdGuard, …), the
  * OpenClaw workspace with its memory, the projects in /srv/data/workspace and the files share.
  * restic writes deduplicated snapshots to the Toshiba, so a night costs only what changed. Kept: 7
@@ -98,7 +98,7 @@ async function ensureRepo() {
   await execFileP('restic', ['init'], { env: env() });
 }
 
-/** A consistent copy of MinisManager's live SQLite database (the file itself may be mid-write). */
+/** A consistent copy of NovaOS's live SQLite database (the file itself may be mid-write). */
 function snapshotDb() {
   fs.mkdirSync(SNAP_DIR(), { recursive: true });
   const out = path.join(SNAP_DIR(), 'manar.db');
@@ -181,7 +181,7 @@ export function backupNow(): Promise<BackupRun> {
     } catch (e) {
       run.ok = false;
       run.error = (e as Error).message.slice(0, 500);
-      void postHook({ type: 'alert', severity: 'critical', kind: 'backup_failed', text: `💾 النسخة الاحتياطية الليلية فشلت.\n<code>${run.error.replace(/[<>&]/g, '')}</code>\nبتشوف التفاصيل بـ MinisManager ← النسخ الاحتياطي.` });
+      void postHook({ type: 'alert', severity: 'critical', kind: 'backup_failed', text: `💾 النسخة الاحتياطية الليلية فشلت.\n<code>${run.error.replace(/[<>&]/g, '')}</code>\nبتشوف التفاصيل بـ NovaOS ← النسخ الاحتياطي.` });
     } finally {
       run.finishedAt = Date.now();
       record(run);
@@ -243,7 +243,7 @@ export async function repoSize(): Promise<number> {
   }
 }
 
-/** A restic backup still running from before MinisManager restarted (it lives in its own scope). */
+/** A restic backup still running from before NovaOS restarted (it lives in its own scope). */
 async function orphanRunning(): Promise<boolean> {
   try {
     await execFileP('pgrep', ['-f', '^(/usr/bin/)?restic backup'], { timeout: 5000 });

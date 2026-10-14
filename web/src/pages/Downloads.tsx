@@ -6,7 +6,7 @@ import { useI18n, type MessageKey } from '../i18n';
 import { Button, Card, PageHeader } from '../components/ui';
 
 /**
- * Downloads: the Internet Archive items MinisManager fetches itself (file by file, with pause,
+ * Downloads: the Internet Archive items NovaOS fetches itself (file by file, with pause,
  * "download next", skip and retry) and qBittorrent's torrents — with whether each reached Jellyfin.
  */
 type FileState = 'done' | 'downloading' | 'queued' | 'failed' | 'skipped' | 'paused';

@@ -9,13 +9,13 @@ import java.security.cert.X509Certificate
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLPeerUnverifiedException
 
-/** Talking to MinisManager: finding it during setup, and calling its API as the signed-in user. */
+/** Talking to NovaOS: finding it during setup, and calling its API as the signed-in user. */
 object Server {
     class Found(val url: String, val version: String, val viaName: String?)
 
     /**
      * "my-server.tailnet.ts.net", "100.64.0.5", "https://host:7443"… → a working server URL.
-     * MinisManager's HTTPS certificate is for its name, not its IP: when an IP is typed, the
+     * NovaOS's HTTPS certificate is for its name, not its IP: when an IP is typed, the
      * certificate's own name is read and used instead (it resolves through Tailscale).
      */
     fun probe(input: String, portInput: String): Found {
@@ -56,9 +56,9 @@ object Server {
         c.connectTimeout = 8000
         c.readTimeout = 8000
         try {
-            if (c.responseCode != 200) throw IOException("The server answered ${c.responseCode} — is this MinisManager?")
+            if (c.responseCode != 200) throw IOException("The server answered ${c.responseCode} — is this NovaOS?")
             val j = JSONObject(c.inputStream.bufferedReader().readText())
-            if (!j.optBoolean("ok")) throw IOException("That doesn't look like MinisManager")
+            if (!j.optBoolean("ok")) throw IOException("That doesn't look like NovaOS")
             return j.optString("version", "?")
         } finally {
             c.disconnect()
@@ -107,7 +107,7 @@ object Server {
         }
     }
 
-    /** Session cookie from the WebView, and the Origin MinisManager checks on every change. */
+    /** Session cookie from the WebView, and the Origin NovaOS checks on every change. */
     fun authorize(c: HttpURLConnection, base: String) {
         CookieManager.getInstance().getCookie(base)?.let { c.setRequestProperty("Cookie", it) }
         c.setRequestProperty("Origin", base)

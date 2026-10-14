@@ -7,7 +7,7 @@ set -euo pipefail
 HERE=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)
 UI=${OPENCLAW_UI:-$(npm root -g 2>/dev/null)/openclaw/dist/control-ui}
 [[ -f $UI/index.html ]] || { echo "Control UI not found at $UI" >&2; exit 1; }
-BK=$HOME/MinisManager/var/backups/openclaw-ui; mkdir -p "$BK"
+BK=$HOME/NovaOS/var/backups/openclaw-ui; mkdir -p "$BK"
 VER=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("version","?"))' "$UI/../build-info.json" 2>/dev/null || echo "?")
 TAG_JS='<script type="module" src="./assets/minis-bidi.js"></script>'
 TAG_CSS='<link rel="stylesheet" href="./assets/minis-bidi.css">'

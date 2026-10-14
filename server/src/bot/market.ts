@@ -3,7 +3,7 @@ import { config } from '../config.js';
  * Small public data the assistant uses every day: prayer times (Dubai, Dubai method) and market
  * prices (gold via PAX Gold, which tracks one troy ounce; BTC/ETH; currency rates). Cached.
  */
-const UA = { 'User-Agent': 'the server-assistant/1.0 (MinisManager)' };
+const UA = { 'User-Agent': 'the server-assistant/1.0 (NovaOS)' };
 const OZ_GRAMS = 31.1034768;
 
 let prayerCache: { day: string; data: unknown } | null = null;

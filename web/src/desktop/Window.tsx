@@ -33,7 +33,7 @@ function closeAnimated(el: HTMLElement | null, id: string) {
 /** While a window is dragged, iframes must not swallow the pointer. */
 const setDragging = (on: boolean) => document.documentElement.classList.toggle('wm-dragging', on);
 
-/** A MinisManager screen with its own navigation (in-memory router), so windows don't fight over the URL. */
+/** A NovaOS screen with its own navigation (in-memory router), so windows don't fight over the URL. */
 function ScreenBody({ win }: { win: Win }) {
   const { t } = useI18n();
   const loc = useMemo(() => memoryLocation({ path: win.route, record: true }), []); // eslint-disable-line react-hooks/exhaustive-deps

@@ -30,7 +30,7 @@ import { fileUrl, type Entry } from '../lib/fm';
 import { api } from '../lib/api';
 import { wm } from './wm';
 
-/** MinisManager's own screens as desktop apps. */
+/** NovaOS's own screens as desktop apps. */
 export interface DeskApp {
   id: string;
   title: MessageKey;

@@ -116,7 +116,7 @@ export async function scan(): Promise<Record<string, Device>> {
     // The first scan only learns what's there; after that, a device never seen before is worth a line.
     if (!first)
       for (const d of fresh)
-        void postHook({ type: 'notice', text: `📶 جهاز جديد دخل شبكة البيت: <b>${(d.host ?? d.vendor ?? (d.privateMac ? 'تلفون/تابلت (عنوان خاص)' : 'غير معروف')).replace(/[<>&]/g, '')}</b> · ${d.ip}\nإذا مش إلك، بتشوفه بـ MinisManager ← الشبكة.` });
+        void postHook({ type: 'notice', text: `📶 جهاز جديد دخل شبكة البيت: <b>${(d.host ?? d.vendor ?? (d.privateMac ? 'تلفون/تابلت (عنوان خاص)' : 'غير معروف')).replace(/[<>&]/g, '')}</b> · ${d.ip}\nإذا مش إلك، بتشوفه بـ NovaOS ← الشبكة.` });
     return known;
   } finally {
     scanning = false;

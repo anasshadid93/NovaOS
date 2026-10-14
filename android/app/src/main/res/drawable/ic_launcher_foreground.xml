@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- MinisManager's "M" (a rising/falling pulse), device base and status light, from web/public/icons/icon.svg. -->
+<!-- NovaOS: the nova (four-point star), its orbit and the small body on it, from web/public/icons/icon.svg. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="512" android:viewportHeight="512">
     <group android:scaleX="0.62" android:scaleY="0.62" android:pivotX="256" android:pivotY="256">
-        <path android:pathData="M138,352V178l118,134 118,-134v174" android:strokeColor="#FFFFFF" android:strokeWidth="46" android:strokeLineCap="round" android:strokeLineJoin="round" />
-        <path android:fillColor="#FFFFFF" android:fillAlpha="0.55" android:pathData="M159,396h194a9,9 0 0 1 0,18h-194a9,9 0 0 1 0,-18z" />
-        <path android:fillColor="#3EE07A" android:strokeColor="#FFFFFF" android:strokeWidth="5" android:pathData="M392,126m-21,0a21,21 0 1 0 42,0a21,21 0 1 0 -42,0" />
+        <group android:rotation="-25" android:pivotX="256" android:pivotY="256">
+            <path android:strokeColor="#FFFFFF" android:strokeAlpha="0.38" android:strokeWidth="13" android:pathData="M78,256a178,64 0 1 0 356,0a178,64 0 1 0 -356,0" />
+        </group>
+        <path android:fillColor="#FFFFFF" android:pathData="M256,78C263,194 318,249 434,256C318,263 263,318 256,434C249,318 194,263 78,256C194,249 249,194 256,78Z" />
+        <group android:rotation="45" android:pivotX="256" android:pivotY="256">
+            <path android:fillColor="#FFFFFF" android:fillAlpha="0.9" android:pathData="M256,190C259,236 276,253 322,256C276,259 259,276 256,322C253,276 236,259 190,256C236,253 253,236 256,190Z" />
+        </group>
+        <path android:fillColor="#3EE07A" android:strokeColor="#FFFFFF" android:strokeWidth="5" android:pathData="M104,304m-23,0a23,23 0 1 0 46,0a23,23 0 1 0 -46,0" />
     </group>
 </vector>

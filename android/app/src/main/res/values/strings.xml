@@ -1,10 +1,10 @@
 <resources>
-    <string name="app_name">MinisManager</string>
-    <string name="share_label">Send to MinisManager</string>
+    <string name="app_name">NovaOS</string>
+    <string name="share_label">Send to NovaOS</string>
     <string name="settings_title">App settings</string>
 
-    <string name="setup_welcome">Welcome to MinisManager</string>
-    <string name="setup_subtitle">Connect this device to your MinisManager server.</string>
+    <string name="setup_welcome">Welcome to NovaOS</string>
+    <string name="setup_subtitle">Connect this device to your NovaOS server.</string>
     <string name="setup_address">Server address</string>
     <string name="setup_address_hint">e.g. my-server.tailnet.ts.net</string>
     <string name="setup_port">Port</string>
@@ -29,7 +29,7 @@
     <string name="pref_battery_summary">Let the app run in the background so notifications arrive on time.</string>
     <string name="pref_about">About</string>
     <string name="pref_version">Version %1$s</string>
-    <string name="pref_reload">Reload MinisManager</string>
+    <string name="pref_reload">Reload NovaOS</string>
     <string name="test_sent">Test notification sent</string>
     <string name="test_failed">Couldn\'t send the test: %1$s</string>
 
@@ -38,21 +38,21 @@
     <string name="retry">Try again</string>
     <string name="open_settings">App settings</string>
 
-    <string name="lock_title">Unlock MinisManager</string>
+    <string name="lock_title">Unlock NovaOS</string>
     <string name="lock_subtitle">Confirm it\'s you</string>
     <string name="unlock">Unlock</string>
 
-    <string name="share_title">Send to MinisManager</string>
+    <string name="share_title">Send to NovaOS</string>
     <string name="share_torrent">Download the torrent</string>
     <string name="share_video">Download the video</string>
     <string name="share_audio">Download the audio only</string>
     <string name="share_upload">Upload %1$d file(s) to the server</string>
-    <string name="share_open">Open in MinisManager</string>
+    <string name="share_open">Open in NovaOS</string>
     <string name="share_nothing">There\'s nothing here the server can use.</string>
     <string name="share_sending">Sending…</string>
     <string name="share_uploading">Uploading %1$d of %2$d…</string>
     <string name="share_uploaded">Uploaded %1$d file(s) — they\'re in Files.</string>
-    <string name="share_signin">Open MinisManager and sign in first.</string>
+    <string name="share_signin">Open NovaOS and sign in first.</string>
     <string name="share_setup">Set up the app first.</string>
     <string name="close">Close</string>
 

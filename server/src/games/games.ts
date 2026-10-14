@@ -14,7 +14,7 @@ import { config } from '../config.js';
  * This page pairs a TV (the 4-digit code Moonlight shows goes to Sunshine's /api/pin), lists the
  * games per console from the Toshiba, says which BIOS/firmware files are still missing, fetches the
  * PS3 firmware from Sony, checks a PS3 game against RPCS3's compatibility list, and tells the rest of
- * MinisManager when someone is playing so GPU-heavy background work waits.
+ * NovaOS when someone is playing so GPU-heavy background work waits.
  */
 
 const execFileP = promisify(execFile);

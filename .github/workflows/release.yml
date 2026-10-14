@@ -54,10 +54,10 @@ jobs:
       - name: Collect
         run: |
           apk=$(ls android/app/build/outputs/apk/release/*.apk | head -1)
-          cp "$apk" MinisManager.apk
-          sha256sum MinisManager.apk > MinisManager.apk.sha256
+          cp "$apk" NovaOS.apk
+          sha256sum NovaOS.apk > NovaOS.apk.sha256
       - uses: actions/upload-artifact@v4
-        with: { name: apk, path: "MinisManager.apk*" }
+        with: { name: apk, path: "NovaOS.apk*" }
 
   release:
     needs: [test, apk]
@@ -72,5 +72,5 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            MinisManager.apk
-            MinisManager.apk.sha256
+            NovaOS.apk
+            NovaOS.apk.sha256

@@ -74,7 +74,7 @@ export async function launch(rom: string): Promise<{ ok: boolean; error?: string
   return { ok: true };
 }
 
-// ---- Played / favourites (MinisManager's own, merged with what ES-DE wrote in its gamelists) ----
+// ---- Played / favourites (NovaOS's own, merged with what ES-DE wrote in its gamelists) ----
 
 interface Played {
   at: number;
