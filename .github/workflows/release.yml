@@ -33,9 +33,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with: { distribution: temurin, java-version: 21 }
-      - uses: android-actions/setup-android@v3
+      # The ubuntu runner ships the Android SDK (ANDROID_HOME); Gradle downloads what else it needs.
       - name: Signing config (unsigned build when the secrets are missing)
         env:
           KS: ${{ secrets.ANDROID_KEYSTORE_B64 }}
