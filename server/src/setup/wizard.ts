@@ -70,6 +70,22 @@ export function validateWizardConfig(input: unknown): { ok: true; value: WizardC
   return { ok: true, value };
 }
 
+function internalFallback() {
+  let size = 0;
+  let used: number | null = null;
+  for (const p of [config.dataRoot, config.dataDir, '/']) {
+    try {
+      const st = fs.statfsSync(p);
+      size = st.blocks * st.bsize;
+      used = (st.blocks - st.bfree) * st.bsize;
+      break;
+    } catch {
+      /* try the next one */
+    }
+  }
+  return { id: 'internal', name: 'internal', disk: null, transport: null, removable: false, size, used, fstype: null, state: 'mounted' as const, path: '' };
+}
+
 function renderNodes(): string[] {
   try {
     return fs
@@ -99,11 +115,13 @@ function readConfigFile(): Record<string, unknown> {
 
 /** What the wizard shows: detected facts plus the values that are currently in effect. */
 export async function detectEnvironment() {
-  const [ts, docker, volumes] = await Promise.all([
+  const [ts, docker, found] = await Promise.all([
     tailscale(),
     dockerVersion(),
     listVolumes().catch(() => []),
   ]);
+  // The system drive is always offered, even where lsblk or the data root is not there yet (CI, first boot).
+  const volumes = found.some((v) => v.id === 'internal') ? found : [internalFallback(), ...found];
   const dns = ts?.self.dns || null;
   return {
     machine: {
