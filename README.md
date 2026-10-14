@@ -8,7 +8,18 @@ backups, monitoring and power, all behind Tailscale with passkey sign-in. One in
 setup wizard, updates from GitHub Releases with rollback.
 
 <p align="center">
-  <img src="docs/brand/preview-1024.png" alt="NovaOS on a phone" width="720">
+  <img src="docs/brand/preview-1024.png" alt="NovaOS icon" width="160">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/readme/home.png" alt="Home" width="19%">
+  <img src="docs/screenshots/readme/store.png" alt="App Store" width="19%">
+  <img src="docs/screenshots/readme/watch.png" alt="Watch" width="19%">
+  <img src="docs/screenshots/readme/games.png" alt="Games" width="19%">
+  <img src="docs/screenshots/readme/health.png" alt="Server health" width="19%">
+</p>
+<p align="center">
+  <img src="docs/screenshots/readme/desktop.png" alt="Desktop mode on a laptop or TV" width="98%">
 </p>
 
 ## What you get
