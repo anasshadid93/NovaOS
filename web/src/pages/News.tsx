@@ -58,6 +58,9 @@ interface Rules {
   minConfidence: number;
   minReliability: number;
   minAvgMove: number;
+  sentimentEntry: number;
+  sentimentExit: number;
+  sentimentHours: number;
 }
 interface Group {
   key: string;
@@ -96,6 +99,7 @@ interface Data {
   lastError: string | null;
   scanning: boolean;
   stats: Stats;
+  mood: Partial<Record<Asset, { score: number; n: number; drivers: string[] }>>;
 }
 
 const usd = (v: number) => `$${v.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
@@ -106,9 +110,9 @@ type Tab = keyof typeof TAB_KEYS;
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: 'ok' | 'danger' }) {
   return (
-    <div className="card p-3">
-      <div className="text-xs text-muted">{label}</div>
-      <div className={`text-lg font-semibold ${tone === 'ok' ? 'text-ok' : tone === 'danger' ? 'text-danger' : 'text-ink'}`} dir="ltr">
+    <div className="card min-w-0 p-2">
+      <div className="truncate text-[11px] text-muted">{label}</div>
+      <div className={`truncate text-sm font-semibold ${tone === 'ok' ? 'text-ok' : tone === 'danger' ? 'text-danger' : 'text-ink'}`} dir="ltr">
         {value}
       </div>
     </div>
@@ -203,9 +207,9 @@ export function News() {
         }
       />
       <main className="safe-bottom mx-auto max-w-3xl space-y-4 px-3">
-        <div className="flex flex-wrap gap-2">
+        <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none]" role="tablist">
           {(Object.keys(TAB_KEYS) as Tab[]).map((x) => (
-            <button key={x} type="button" className={chip(tab === x)} onClick={() => setTab(x)}>
+            <button key={x} type="button" role="tab" aria-selected={tab === x} className={`shrink-0 whitespace-nowrap ${chip(tab === x)}`} onClick={() => setTab(x)}>
               {t(TAB_KEYS[x])}
             </button>
           ))}
@@ -214,10 +218,10 @@ export function News() {
 
         {tab === 'dashboard' && (
           <>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="grid grid-cols-4 gap-2">
               <Stat label={t('news.equity')} value={usd(s.equity)} tone={s.returnPct >= 0 ? 'ok' : 'danger'} />
               <Stat label={t('news.return')} value={pct(s.returnPct)} tone={s.returnPct >= 0 ? 'ok' : 'danger'} />
-              <Stat label={t('news.trades')} value={`${s.trades} · ${s.open} ${t('news.open').toLowerCase()}`} />
+              <Stat label={t('news.trades')} value={`${s.trades} · ${s.open} ▶`} />
               <Stat label={t('news.winRate')} value={s.winRate === null ? '—' : `${s.winRate}%`} />
               <Stat label={t('news.profitFactor')} value={s.profitFactor === null ? '—' : String(s.profitFactor)} />
               <Stat label={t('news.avgTrade')} value={s.avgPct === null ? '—' : pct(s.avgPct)} />
@@ -228,17 +232,54 @@ export function News() {
               {a.running ? '● ' : `${t('news.paused')} · `}
               {d.lastScan ? t('news.lastScan', { when: formatRelative(d.lastScan) }) : ''} {d.llm.ready ? '' : `· ${t('news.keyMissing')}`} {d.lastError ? `· ${d.lastError}` : ''}
             </p>
-            <Card title={t('news.equityCurve')}>
-              {s.equitySeries.length >= 2 ? (
-                <Chart data={[s.equitySeries.map((p) => Math.round(p.at / 1000)), s.equitySeries.map((p) => p.equity)]} series={[{ label: 'USD', color: '#2f6fe4' }]} height={180} fmt={(v) => usd(v)} />
-              ) : (
-                <p className="text-xs text-muted">{t('news.noTrades')}</p>
-              )}
+            <Card title={t('news.mood')}>
+              <p className="mb-2 text-xs text-muted">{t('news.moodHint', { h: d.rules.sentimentHours, entry: d.rules.sentimentEntry, exit: d.rules.sentimentExit })}</p>
+              {Object.keys(d.mood).length === 0 && <p className="text-xs text-muted">{t('news.moodNone')}</p>}
+              <ul className="space-y-2">
+                {ALL_ASSETS.filter((x) => d.mood[x]).map((x) => {
+                  const m = d.mood[x]!;
+                  const w = Math.min(100, (Math.abs(m.score) / Math.max(1, d.rules.sentimentEntry)) * 50);
+                  const tradable = d.rules.assets.includes(x);
+                  return (
+                    <li key={x} className="text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className={tradable ? 'font-medium text-ink' : 'text-muted'}>
+                          {x} <span className="text-muted">· {m.n}</span>
+                        </span>
+                        <span className={m.score > 0 ? 'text-ok' : m.score < 0 ? 'text-danger' : 'text-muted'} dir="ltr">
+                          {m.score > 0 ? '+' : ''}
+                          {m.score.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="relative mt-0.5 h-2 rounded-full bg-canvas">
+                        <div className="absolute inset-y-0 start-1/2 w-px bg-line" />
+                        <div className={`absolute inset-y-0 h-2 rounded-full ${m.score >= 0 ? 'bg-ok' : 'bg-danger'}`} style={m.score >= 0 ? { left: '50%', width: `${w}%` } : { right: '50%', width: `${w}%` }} />
+                      </div>
+                      <div className="mt-0.5 truncate text-muted" title={m.drivers.join(' · ')}>{m.drivers[0]}</div>
+                    </li>
+                  );
+                })}
+              </ul>
             </Card>
-            <div className="grid gap-3 md:grid-cols-2">
-              <Card title={t('news.byAsset')}>{s.byAsset.length ? <Bars rows={s.byAsset} label={(k) => k} /> : <p className="text-xs text-muted">{t('news.noTrades')}</p>}</Card>
-              <Card title={t('news.byType')}>{s.byType.length ? <Bars rows={s.byType} label={ev} /> : <p className="text-xs text-muted">{t('news.noTrades')}</p>}</Card>
-            </div>
+            {s.trades === 0 && s.equitySeries.length < 2 ? (
+              <Card>
+                <p className="text-xs text-muted">{t('news.waiting')}</p>
+              </Card>
+            ) : (
+              <>
+                <Card title={t('news.equityCurve')}>
+                  {s.equitySeries.length >= 2 ? (
+                    <Chart data={[s.equitySeries.map((p) => Math.round(p.at / 1000)), s.equitySeries.map((p) => p.equity)]} series={[{ label: 'USD', color: '#2f6fe4' }]} height={180} fmt={(v) => usd(v)} />
+                  ) : (
+                    <p className="text-xs text-muted">{t('news.noTrades')}</p>
+                  )}
+                </Card>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Card title={t('news.byAsset')}>{s.byAsset.length ? <Bars rows={s.byAsset} label={(k) => k} /> : <p className="text-xs text-muted">{t('news.noTrades')}</p>}</Card>
+                  <Card title={t('news.byType')}>{s.byType.length ? <Bars rows={s.byType} label={ev} /> : <p className="text-xs text-muted">{t('news.noTrades')}</p>}</Card>
+                </div>
+              </>
+            )}
             {(s.best || s.worst) && (
               <div className="grid gap-3 md:grid-cols-2">
                 {s.best && (
@@ -500,6 +541,9 @@ export function News() {
                   {num('minReliability', t('news.minRel'), 0.05)}
                   {num('minAvgMove', t('news.minMove'), 0.5)}
                   {num('scanEveryMin', t('news.scanEvery'), 5)}
+                  {num('sentimentEntry', t('news.sentimentEntry'), 0.1)}
+                  {num('sentimentExit', t('news.sentimentExit'), 0.1)}
+                  {num('sentimentHours', t('news.sentimentHours'), 6)}
                   {num('startBalance', t('news.startBalance'), 100)}
                 </div>
                 {ok && <p className="text-xs text-ok">{ok}</p>}

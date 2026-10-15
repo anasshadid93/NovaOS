@@ -16,7 +16,7 @@ export interface Position {
   asset: Asset;
   symbol: string;
   eventId: number;
-  type: EventType;
+  type: EventType | 'sentiment';
   headline: string;
   entry: number;
   qty: number;
@@ -64,8 +64,12 @@ export interface Rules {
   minConfidence: number;
   minReliability: number;
   minAvgMove: number;
+  /** Market-mood trades: enter when the news flow for an asset scores above this (0–2), exit below the other. */
+  sentimentEntry: number;
+  sentimentExit: number;
+  sentimentHours: number;
 }
-export const RULES: Rules = { assets: DEFAULT_TRADABLE, startBalance: 1000, scanEveryMin: 10, riskPct: 5, maxOpen: 3, stopPct: 4, targetCapPct: 8, targetMinPct: 3, trailArmPct: 3, trailPct: 3, dailyLossPct: 3, minConfidence: 0.7, minReliability: 0.6, minAvgMove: 2 };
+export const RULES: Rules = { assets: DEFAULT_TRADABLE, startBalance: 1000, scanEveryMin: 10, riskPct: 5, maxOpen: 3, stopPct: 4, targetCapPct: 8, targetMinPct: 3, trailArmPct: 3, trailPct: 3, dailyLossPct: 3, minConfidence: 0.6, minReliability: 0.6, minAvgMove: 2, sentimentEntry: 0.8, sentimentExit: -0.4, sentimentHours: 48 };
 
 export interface EventSignal {
   eventId: number;
@@ -143,7 +147,7 @@ export function decide(a: Account, pb: Playbook | null, sig: EventSignal, prices
       skipped.push({ asset, why: `history: ${play!.direction} ${play!.avg[play!.best]}% in ${play!.best}d, reliable ${Math.round(play!.reliability * 100)}% (n=${play!.n})` });
       continue;
     }
-    if (unknown && (sig.confidence < 0.85 || sig.importance < 0.7)) {
+    if (unknown && (sig.confidence < 0.8 || sig.importance < 0.6)) {
       skipped.push({ asset, why: 'no history for this event type and asset; story not strong enough' });
       continue;
     }
@@ -227,6 +231,52 @@ export function equity(a: Account, prices: Record<string, number>) {
   return r2(a.balance + a.positions.reduce((s, p) => s + ((prices[p.symbol] ?? p.entry) - p.entry) * p.qty, 0));
 }
 
+/**
+ * Market mood: a trade on the whole news flow rather than one headline. `score` per asset comes from
+ * every event of the last N hours (direction × confidence × importance, decaying with age).
+ * Enter long when the mood is clearly positive and nothing is held; leave when it turns negative.
+ */
+export function moodTrades(a: Account, scores: Partial<Record<Asset, { score: number; drivers: string[] }>>, prices: Record<string, number>, rules = RULES, now = Date.now()): { open: Position[]; closeAssets: Asset[] } {
+  const open: Position[] = [];
+  const closeAssets: Asset[] = [];
+  if (!a.running) return { open, closeAssets };
+  const dayLoss = -a.dayPnl / a.balance;
+  for (const asset of rules.assets) {
+    const m = scores[asset];
+    if (!m) continue;
+    const held = a.positions.some((p) => p.asset === asset);
+    if (held && m.score <= rules.sentimentExit) {
+      closeAssets.push(asset);
+      continue;
+    }
+    if (held || m.score < rules.sentimentEntry) continue;
+    if (a.positions.length + open.length >= rules.maxOpen || dayLoss >= rules.dailyLossPct / 100) continue;
+    const symbol = SYMBOLS[asset].symbol;
+    const price = prices[symbol];
+    if (!price) continue;
+    // Mood trades are smaller than event trades and give the move a few days.
+    const margin = r2((a.balance * rules.riskPct) / 100 / 2);
+    open.push({
+      id: 0,
+      asset,
+      symbol,
+      eventId: -1,
+      type: 'sentiment',
+      headline: m.drivers[0] ?? 'market mood',
+      entry: price,
+      qty: margin / price,
+      margin,
+      stop: price * (1 - rules.stopPct / 100),
+      target: price * (1 + Math.max(rules.targetMinPct, rules.targetCapPct / 2) / 100),
+      peak: price,
+      openedAt: now,
+      deadline: now + 5 * 86_400_000,
+      why: `news flow is bullish (${m.score.toFixed(2)}): ${m.drivers.slice(0, 2).join(' · ').slice(0, 140)}`,
+    });
+  }
+  return { open, closeAssets };
+}
+
 export const allAssets = ASSETS;
 
 /** Rules from the saved settings on top of the defaults, with every number kept sane. */
@@ -249,6 +299,9 @@ export function rulesFrom(saved: Record<string, unknown> | undefined): Rules {
   num('minReliability', 0.3, 1);
   num('minAvgMove', 0, 20);
   num('scanEveryMin', 5, 120);
+  num('sentimentEntry', 0.2, 5);
+  num('sentimentExit', -5, 0);
+  num('sentimentHours', 6, 240);
   num('startBalance', 100, 1e7);
   if (Array.isArray(saved.assets)) {
     const xs = saved.assets.map(String).filter((a): a is Asset => (ASSETS as readonly string[]).includes(a));

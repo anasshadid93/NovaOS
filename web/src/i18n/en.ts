@@ -1489,6 +1489,14 @@ export const en = {
   'news.startBalance': "Starting balance ($, applies on reset)",
   'news.saved': "Saved",
   'news.aiTitle': "AI reader",
+  'ev.sentiment': "Market mood",
+  'news.mood': "Market mood from the news flow",
+  'news.moodHint': "Every headline the AI scored in the last {h} hours adds to or subtracts from each asset, fading with age. Above +{entry} it buys (half size), below {exit} it sells what it holds.",
+  'news.moodNone': "No scored news in the window yet.",
+  'news.sentimentEntry': "Mood: buy above",
+  'news.sentimentExit': "Mood: sell below",
+  'news.sentimentHours': "Mood window (hours)",
+  'news.waiting': "Waiting for the first closed trades; charts fill in from there.",
 } as const;
 
 export type MessageKey = keyof typeof en;

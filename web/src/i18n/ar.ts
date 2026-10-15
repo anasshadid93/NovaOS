@@ -1571,4 +1571,12 @@ export const ar: Record<MessageKey, string> & Record<string, string> = {
   'news.startBalance': "رصيد البداية ($، عند إعادة الضبط)",
   'news.saved': "تم الحفظ",
   'news.aiTitle': "قارئ الذكاء الاصطناعي",
+  'ev.sentiment': "مزاج السوق",
+  'news.mood': "مزاج السوق من تدفّق الأخبار",
+  'news.moodHint': "كل عنوان قيّمه الذكاء الاصطناعي خلال آخر {h} ساعة يضيف أو يخصم من كل أصل ويتلاشى مع الوقت. فوق +{entry} يشتري (نصف الحجم)، وتحت {exit} يبيع ما يحمله.",
+  'news.moodNone': "لا أخبار مقيّمة في هذه النافذة بعد.",
+  'news.sentimentEntry': "المزاج: اشترِ فوق",
+  'news.sentimentExit': "المزاج: بِع تحت",
+  'news.sentimentHours': "نافذة المزاج (ساعات)",
+  'news.waiting': "بانتظار أول صفقات مغلقة؛ الرسوم تمتلئ من بعدها.",
 };

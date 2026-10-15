@@ -6,7 +6,7 @@ import { notify } from '../notify/notify.js';
 import { FEEDS, fetchFeed, type Headline } from './feeds.js';
 import { assessHeadlines, DEFAULT_MODEL, llmReady, llmSettings, llmUsage, saveLlmSettings, type Assessment } from './llm.js';
 import { ASSETS, buildPlaybook, dailyCloses, loadPlaybook, reaction, SYMBOLS, type Asset, type EventType, type Playbook } from './playbook.js';
-import { applyOpen, close, decide, equity, loadAccount, manage, rulesFrom, saveAccount, freshAccount, type Account, type EventSignal, type Rules } from './trader.js';
+import { applyOpen, close, decide, equity, loadAccount, manage, moodTrades, rulesFrom, saveAccount, freshAccount, type Account, type EventSignal, type Rules } from './trader.js';
 
 /**
  * News Trader: every N minutes read the feeds, ask the model which headlines are events, check each
@@ -132,12 +132,56 @@ export async function scanNow(): Promise<{ headlines: number; fresh: number; eve
         }
       }
       saveAccount(account);
-      snapshotEquity();
     }
+    if (llmReady()) tradeTheMood();
+    snapshotEquity();
     return { headlines: total, fresh: fresh.length, events, opened };
   } finally {
     scanning = false;
   }
+}
+
+/** The market mood per asset from the recent news flow: Σ direction × confidence × importance × decay. */
+export function marketView(): Partial<Record<Asset, { score: number; n: number; drivers: string[] }>> {
+  const db = getDb();
+  const since = Date.now() - rules.sentimentHours * 3600_000;
+  const rows = db.prepare('SELECT title, assets, direction, confidence, importance, at FROM news_events WHERE at > ? ORDER BY at DESC').all(since) as { title: string; assets: string; direction: string; confidence: number; importance: number; at: number }[];
+  const out: Partial<Record<Asset, { score: number; n: number; drivers: { w: number; t: string }[] }>> = {};
+  for (const r of rows) {
+    const sign = r.direction === 'up' ? 1 : r.direction === 'down' ? -1 : 0;
+    if (!sign) continue;
+    const age = (Date.now() - r.at) / 3600_000;
+    const decay = Math.max(0, 1 - age / rules.sentimentHours);
+    const w = sign * r.confidence * r.importance * decay * 2;
+    for (const a of JSON.parse(r.assets) as Asset[]) {
+      const o = (out[a] ??= { score: 0, n: 0, drivers: [] });
+      o.score += w;
+      o.n++;
+      o.drivers.push({ w, t: `${sign > 0 ? '↑' : '↓'} ${r.title.slice(0, 80)}` });
+    }
+  }
+  const res: Partial<Record<Asset, { score: number; n: number; drivers: string[] }>> = {};
+  for (const [a, o] of Object.entries(out) as [Asset, { score: number; n: number; drivers: { w: number; t: string }[] }][])
+    res[a] = { score: Math.round(o.score * 100) / 100, n: o.n, drivers: o.drivers.sort((x, y) => Math.abs(y.w) - Math.abs(x.w)).slice(0, 3).map((x) => x.t) };
+  return res;
+}
+
+function tradeTheMood() {
+  const view = marketView();
+  const d = moodTrades(account, view, prices, rules);
+  for (const asset of d.closeAssets)
+    for (const p of account.positions.filter((p) => p.asset === asset)) {
+      const c = close(account, p, prices[p.symbol] ?? p.entry, 'news');
+      announceClose(c.asset, c.pct, c.pnl, 'mood turned negative', p.headline);
+    }
+  applyOpen(account, d.open, -1);
+  for (const p of d.open) {
+    void postHook({ type: 'notice', text: `📰 News Trader bought ${p.asset} at ${p.entry} ($${p.margin} paper) on market mood
+${p.why}
+Target +${Math.round(((p.target - p.entry) / p.entry) * 1000) / 10}% · stop −${rules.stopPct}%` });
+    void notify('News Trader', `Bought ${p.asset} on market mood`, '/news');
+  }
+  if (d.open.length || d.closeAssets.length) saveAccount(account);
 }
 
 /** Events older than their horizon: measure what really happened and keep it for the playbook. */
@@ -266,6 +310,7 @@ export async function newsRoutes(app: FastifyInstance) {
       feeds: FEEDS.map((f) => ({ id: f.id, name: f.name, lang: f.lang, kind: f.kind })),
       assets: ASSETS,
       stats: stats(),
+      mood: marketView(),
     };
   });
 
