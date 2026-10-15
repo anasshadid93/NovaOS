@@ -3,7 +3,7 @@ import path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { config } from '../config.js';
-import { getDb, kvGet, kvSet } from '../db.js';
+import { getDb } from '../db.js';
 import { runHelper } from '../helper.js';
 import { MARKETS } from './market.js';
 import { availableProviders, getSettings, type Provider, type QuantSettings } from './settings.js';
@@ -210,16 +210,12 @@ export async function pollRuns(): Promise<void> {
   }
 }
 
-/** Daily schedule: at agentsHourUtc, queue every traded asset (once). */
+/** Daily schedule: from agentsHourUtc on, make sure every traded asset has a run today (errored runs are retried, within the daily cap). */
 export async function scheduleRuns(): Promise<void> {
   const s = getSettings();
   if (!s.agentsEnabled || !alive) return;
-  const now = new Date();
-  if (now.getUTCHours() < s.agentsHourUtc) return;
-  const key = `quant.agents.day`;
-  if (kvGet(key) === today()) return;
+  if (new Date().getUTCHours() < s.agentsHourUtc) return;
   for (const a of s.assets) await requestRun(a).catch(() => undefined);
-  kvSet(key, today());
 }
 
 export function listRuns(limit = 40): AgentRun[] {

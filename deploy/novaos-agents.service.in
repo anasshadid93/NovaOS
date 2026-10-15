@@ -2,7 +2,6 @@
 Description=NovaOS Quant Desk — TradingAgents sidecar (multi-agent market debate)
 After=network-online.target
 Wants=network-online.target
-PartOf=manar.service
 
 [Service]
 Type=simple
