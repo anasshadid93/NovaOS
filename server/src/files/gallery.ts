@@ -146,7 +146,7 @@ export interface MediaItem {
 /** Game artwork (covers, screenshots, marquees under Games/) and backup folders are not photos. */
 /** Not photos: game and backup trees, thumbnails, Jellyfin artwork folders, and source-code trees (web assets, textures, build output). */
 const NOT_GALLERY =
-  /(^|\/)(Games|Backups|\.trash|\.thumbs|thumbnails|extrafanart|extrathumbs|node_modules|dist|build|src|public|static|textures|vendor|oem|\.git|[^/]*source code[^/]*)\/|^(ollama|apps|workspace|docker)\//i;
+  /(^|\/)(Games|Backups|\.trash|\.thumbs|thumbnails|extrafanart|extrathumbs|node_modules|dist|build|src|public|static|textures|vendor|oem|\.git|[^/]*source code[^/]*)\/|^(ollama|apps|workspace|docker)\/|^external\/[^/]+\/(usr|tmp|etc|var|lib|opt|bin|sbin|proc|sys)\//i;
 /** The film/series library and torrent payloads: their images are artwork and samples, never photos (videos stay listed). */
 const LIBRARY = /(^|\/)(Media|Downloads\/Torrents)\//;
 /** Media-library artwork Jellyfin keeps next to films and episodes. */

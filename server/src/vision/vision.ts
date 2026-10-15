@@ -22,21 +22,24 @@ const execFileP = promisify(execFile);
 const DIM = 512;
 const BATCH = 16;
 /** Zero-shot categories: the English prompt the text tower sees, and the label stored. */
-const CATEGORIES: { label: string; prompt: string }[] = [
-  { label: 'people', prompt: 'a photo of people' },
-  { label: 'document', prompt: 'a scanned document or paper form' },
-  { label: 'screenshot', prompt: 'a screenshot of a phone or computer screen' },
-  { label: 'receipt', prompt: 'a receipt or invoice' },
-  { label: 'id', prompt: 'an identity card or passport' },
-  { label: 'car', prompt: 'a car or truck' },
-  { label: 'building', prompt: 'a building or construction site' },
-  { label: 'nature', prompt: 'a landscape, sea, sky or plants' },
-  { label: 'food', prompt: 'food or a meal' },
-  { label: 'pet', prompt: 'a cat, dog or animal' },
-  { label: 'text', prompt: 'a page of text or a chart' },
-  { label: 'logo', prompt: 'a logo or graphic design' },
+const CATEGORIES: { label: string; prompts: string[] }[] = [
+  { label: 'people', prompts: ['a photo of people', '人的照片', '一个人的自拍或合影'] },
+  { label: 'document', prompts: ['a scanned document or paper form', '扫描的文件或表格', '一张纸质文档'] },
+  { label: 'screenshot', prompts: ['a screenshot of a phone or computer screen', '手机或电脑屏幕截图', '软件界面截图'] },
+  { label: 'receipt', prompts: ['a receipt or invoice', '收据或发票', '购物小票'] },
+  { label: 'id', prompts: ['an identity card or passport', '身份证或护照', '证件照片'] },
+  { label: 'car', prompts: ['a car or truck', '汽车或卡车', '一辆车的照片'] },
+  { label: 'building', prompts: ['a building or construction site', '建筑物或建筑工地', '房子和楼房'] },
+  { label: 'nature', prompts: ['a landscape, sea, sky or plants', '风景、大海、天空或植物', '自然风光'] },
+  { label: 'food', prompts: ['food or a meal', '食物或一顿饭', '美食照片'] },
+  { label: 'pet', prompts: ['a cat, dog or animal', '猫、狗或动物', '宠物照片'] },
+  { label: 'text', prompts: ['a page of text or a chart', '一页文字或图表', '表格和数据'] },
+  { label: 'logo', prompts: ['a logo or graphic design', '标志或平面设计', '图标和插画'] },
 ];
+/** Bump when CATEGORIES change: stored labels are recomputed from the kept vectors on the next scan. */
+const PROTO_VERSION = '2';
 const LABEL_MIN = 0.2;
+const LABEL_MARGIN = 0.01; // best must beat the runner-up by this much, else the photo stays unlabelled
 const DUP_MIN = 0.96;
 const PERSON_MIN = 0.45; // cosine between ArcFace vectors of the same person (this model: ~0.5+)
 const MAX_VIDEOS_PER_RUN = 150;
@@ -147,17 +150,18 @@ const abs = (rel: string) => resolveInRoot(rel);
 
 let photoCache: {
   at: number;
-  rows: { path: string; vec: Float32Array; label: string | null }[];
+  rows: { path: string; vec: Float32Array; label: string | null; score: number }[];
 } | null = null;
 function photoVectors() {
   if (photoCache && Date.now() - photoCache.at < 60_000) return photoCache.rows;
   const rows = (
-    getDb().prepare('SELECT path, vec, label FROM media_vec').all() as {
+    getDb().prepare('SELECT path, vec, label, label_score FROM media_vec').all() as {
       path: string;
       vec: Buffer;
       label: string | null;
+      label_score: number | null;
     }[]
-  ).map((r) => ({ path: r.path, vec: fromBlob(r.vec), label: r.label }));
+  ).map((r) => ({ path: r.path, vec: fromBlob(r.vec), label: r.label, score: r.label_score ?? 0 }));
   photoCache = { at: Date.now(), rows };
   return rows;
 }
@@ -185,22 +189,34 @@ const invalidate = () => {
 let protos: { label: string; vec: Float32Array }[] | null = null;
 async function prototypes() {
   if (protos) return protos;
-  const r = await call<{ vectors: number[][] }>('/embed/texts', {
-    texts: CATEGORIES.map((c) => c.prompt),
+  const texts = CATEGORIES.flatMap((c) => c.prompts);
+  const r = await call<{ vectors: number[][] }>('/embed/texts', { texts });
+  let k = 0;
+  protos = CATEGORIES.map((c) => {
+    const v = new Float32Array(DIM);
+    for (const _ of c.prompts) {
+      const x = r.vectors[k++];
+      for (let i = 0; i < DIM; i++) v[i] += x[i];
+    }
+    let n = 0;
+    for (let i = 0; i < DIM; i++) n += v[i] * v[i];
+    n = Math.sqrt(n) || 1;
+    for (let i = 0; i < DIM; i++) v[i] /= n;
+    return { label: c.label, vec: v };
   });
-  protos = CATEGORIES.map((c, i) => ({
-    label: c.label,
-    vec: new Float32Array(r.vectors[i]),
-  }));
   return protos;
 }
 function labelOf(vec: Float32Array, ps: { label: string; vec: Float32Array }[]): { label: string | null; score: number } {
   let best = { label: null as string | null, score: -1 };
+  let second = -1;
   for (const p of ps) {
     const s = cos(vec, p.vec);
-    if (s > best.score) best = { label: p.label, score: s };
+    if (s > best.score) {
+      second = best.score;
+      best = { label: p.label, score: s };
+    } else if (s > second) second = s;
   }
-  return best.score >= LABEL_MIN ? best : { label: null, score: best.score };
+  return best.score >= LABEL_MIN && best.score - second >= LABEL_MARGIN ? best : { label: null, score: best.score };
 }
 
 /** Common Arabic photo-search words; anything else goes through the local Ollama model (first call can take a minute while it loads). */
@@ -345,6 +361,18 @@ registerTask('vision.index', async (ctx) => {
     const photos = all.filter((m) => m.cat === 'images');
     const videos = all.filter((m) => m.cat === 'videos');
     const ps = await prototypes();
+    if (kvGet('vision.protoVersion') !== PROTO_VERSION) {
+      const rows = db.prepare('SELECT path, vec FROM media_vec').all() as { path: string; vec: Buffer }[];
+      const up = db.prepare('UPDATE media_vec SET label = ?, label_score = ? WHERE path = ?');
+      db.exec('BEGIN');
+      for (const r of rows) {
+        const l = labelOf(fromBlob(r.vec), ps);
+        up.run(l.label, l.score, r.path);
+      }
+      db.exec('COMMIT');
+      kvSet('vision.protoVersion', PROTO_VERSION);
+      ctx.log(`Categories recomputed for ${rows.length} photos`);
+    }
 
     // 1. CLIP vectors + category for new or changed photos.
     const have = new Map(
@@ -605,16 +633,19 @@ export async function duplicates(limit = 60) {
 
 export async function categories() {
   const all = itemsByPath(await media());
-  const counts = new Map<string, { n: number; cover: MediaItem }>();
+  const counts = new Map<string, { n: number; cover: MediaItem; best: number }>();
   for (const r of photoVectors()) {
     if (!r.label) continue;
     const m = all.get(r.path);
     if (!m) continue;
     const c = counts.get(r.label);
-    if (!c) counts.set(r.label, { n: 1, cover: m });
+    if (!c) counts.set(r.label, { n: 1, cover: m, best: r.score });
     else {
       c.n++;
-      if (m.taken > c.cover.taken) c.cover = m;
+      if (r.score > c.best) {
+        c.best = r.score;
+        c.cover = m;
+      }
     }
   }
   return CATEGORIES.map((c) => ({
