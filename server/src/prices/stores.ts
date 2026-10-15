@@ -8,6 +8,7 @@ export type StoreId = 'amazon_ae' | 'amazon_com' | 'microless';
 
 export interface Quote {
   title: string;
+  image?: string | null;
   price: number | null; // null = no offer / out of stock
   currency: 'AED' | 'USD';
   inStock: boolean;
@@ -16,6 +17,7 @@ export interface Quote {
 export interface Hit {
   extId: string;
   title: string;
+  image?: string | null;
   price: number | null;
   url: string;
 }
@@ -30,7 +32,7 @@ export const STORES: Record<StoreId, { name: string; market: Market; currency: '
 export const AED_PER_USD = 3.6725;
 export const toUsd = (price: number, currency: 'AED' | 'USD') => (currency === 'AED' ? price / AED_PER_USD : price);
 
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
+export const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
 const decode = (s: string) =>
   s
     .replace(/&amp;/g, '&')
@@ -102,7 +104,8 @@ export async function amazonProduct(store: 'amazon_ae' | 'amazon_com', asin: str
   const priceStr = /class="a-offscreen">([^<]+)/.exec(box)?.[1] ?? /"priceAmount":\s*([\d.]+)/.exec(html)?.[1] ?? null;
   const unavailable = /id="availability"[\s\S]{0,300}?(currently unavailable|out of stock)/i.test(html) || /id="outOfStock"/.test(html);
   const price = priceStr ? num(priceStr) : null;
-  return { title, price: unavailable ? null : price, currency: s.currency, inStock: !unavailable && price !== null, url };
+  const image = /"hiRes":"(https:[^"]+)"/.exec(html)?.[1] ?? /id="landingImage"[^>]*\ssrc="(https:[^"]+)"/.exec(html)?.[1] ?? /"large":"(https:[^"]+)"/.exec(html)?.[1] ?? null;
+  return { title, image, price: unavailable ? null : price, currency: s.currency, inStock: !unavailable && price !== null, url };
 }
 
 export async function amazonSearch(store: 'amazon_ae' | 'amazon_com', query: string, limit = 8): Promise<Hit[]> {
@@ -120,7 +123,8 @@ export async function amazonSearch(store: 'amazon_ae' | 'amazon_com', query: str
     const priceStr = /class="a-offscreen">([^<]+)/.exec(block)?.[1];
     if (!title) continue;
     seen.add(asin);
-    out.push({ extId: asin, title, price: priceStr ? num(priceStr) : null, url: `https://${s.host}/dp/${asin}` });
+    const image = /<img[^>]*class="s-image"[^>]*\ssrc="(https:[^"]+)"/.exec(block)?.[1] ?? null;
+    out.push({ extId: asin, title, image, price: priceStr ? num(priceStr) : null, url: `https://${s.host}/dp/${asin}` });
   }
   return out;
 }
@@ -150,7 +154,8 @@ export async function microlessProduct(slug: string): Promise<Quote> {
   const priceStr = /property="product:price:amount" content="([\d.]+)"/.exec(html)?.[1] ?? /itemprop="price" content="([\d.]+)"/.exec(html)?.[1] ?? /AED\s?([\d,]+(?:\.\d+)?)/.exec(html)?.[1] ?? null;
   const out = /out of stock|sold out/i.test(html.slice(0, 60_000)) && !/in stock/i.test(html.slice(0, 60_000));
   const price = priceStr ? num(priceStr) : null;
-  return { title, price: out ? null : price, currency: 'AED', inStock: !out && price !== null, url };
+  const image = /property="og:image" content="(https:[^"]+)"/.exec(html)?.[1] ?? null;
+  return { title, image, price: out ? null : price, currency: 'AED', inStock: !out && price !== null, url };
 }
 
 export function quote(store: StoreId, extId: string): Promise<Quote> {

@@ -1,10 +1,13 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
+import { config } from '../config.js';
 import { requireAuth, requireElevated } from '../auth/sessions.js';
 import { audit, getDb, kvGet, kvSet } from '../db.js';
 import { notify } from '../notify/notify.js';
 import { postHook } from '../bot/hook.js';
 import { enqueue, registerTask } from '../tasks/tasks.js';
-import { parseProductUrl, quote, search, STORES, toUsd, type Market, type StoreId } from './stores.js';
+import { parseProductUrl, quote, search, STORES, toUsd, UA, type Market, type StoreId } from './stores.js';
 
 /**
  * Prices: a tracker for PC parts (RAM, SSD/HDD, graphics cards) in the UAE and the US.
@@ -42,6 +45,7 @@ interface ProductRow {
   source: string;
   enabled: number;
   created_at: number;
+  image: string | null;
 }
 interface PointRow {
   at: number;
@@ -71,10 +75,12 @@ const MATCHES: Record<Category, RegExp> = {
   hdd: /\b(hdd|hard (disk|drive)|ironwolf|barracuda|exos|wd red|wd blue|wd purple|skyhawk|\d+ ?tb)\b/i,
 };
 
-function addProduct(p: { store: StoreId; extId: string; title: string; category: Category; url: string; source: string }): number {
+function addProduct(p: { store: StoreId; extId: string; title: string; category: Category; url: string; source: string; image?: string | null }): number {
   const db = getDb();
-  db.prepare('INSERT OR IGNORE INTO price_products(store, ext_id, title, category, url, source, created_at) VALUES(?,?,?,?,?,?,?)').run(p.store, p.extId, p.title.slice(0, 200), p.category, p.url, p.source, Date.now());
-  return Number((db.prepare('SELECT id FROM price_products WHERE store = ? AND ext_id = ?').get(p.store, p.extId) as { id: number }).id);
+  db.prepare('INSERT OR IGNORE INTO price_products(store, ext_id, title, category, url, source, created_at, image) VALUES(?,?,?,?,?,?,?,?)').run(p.store, p.extId, p.title.slice(0, 200), p.category, p.url, p.source, Date.now(), p.image ?? null);
+  const id = Number((db.prepare('SELECT id FROM price_products WHERE store = ? AND ext_id = ?').get(p.store, p.extId) as { id: number }).id);
+  if (p.image) db.prepare('UPDATE price_products SET image = ? WHERE id = ? AND image IS NULL').run(p.image, id);
+  return id;
 }
 
 function recordPoint(productId: number, price: number | null, currency: 'AED' | 'USD', inStock: boolean) {
@@ -104,6 +110,7 @@ export interface ProductSummary {
   category: Category;
   url: string;
   source: string;
+  image: boolean;
   price: number | null;
   currency: 'AED' | 'USD';
   usd: number | null;
@@ -137,6 +144,7 @@ export function summaries(): ProductSummary[] {
       category: p.category,
       url: p.url,
       source: p.source,
+      image: !!p.image,
       price: latestPriced?.price ?? null,
       currency: STORES[p.store].currency,
       usd,
@@ -194,7 +202,7 @@ registerTask('prices.refresh', async (ctx, params) => {
           try {
             // Search cards don't always show a price (graphics cards often say "See options"); the quote does.
             const hits = (await search(store, q, 10)).filter((h) => !JUNK.test(h.title) && MATCHES[category].test(h.title)).slice(0, PER_QUERY);
-            for (const h of hits) addProduct({ store, extId: h.extId, title: h.title, category, url: h.url, source: 'seed' });
+            for (const h of hits) addProduct({ store, extId: h.extId, title: h.title, category, url: h.url, source: 'seed', image: h.image });
             // An empty answer (a light page, a hiccup) is retried next time; only real results settle a query.
             if (hits.length) kvSet(key, String(Date.now()));
             ctx.log(`${STORES[store].name} · ${q}: ${hits.length} listings`);
@@ -227,6 +235,7 @@ registerTask('prices.refresh', async (ctx, params) => {
       const q = await quote(p.store, p.ext_id);
       recordPoint(p.id, q.price, q.currency, q.inStock);
       if (q.title && q.title !== p.title) db.prepare('UPDATE price_products SET title = ? WHERE id = ?').run(q.title.slice(0, 200), p.id);
+      if (q.image && q.image !== p.image) db.prepare('UPDATE price_products SET image = ? WHERE id = ?').run(q.image, p.id);
       ok++;
       const prev = before.get(p.id);
       if (prev?.usd && q.price !== null && q.inStock) {
@@ -295,7 +304,7 @@ export async function pricesRoutes(app: FastifyInstance) {
       return reply.code(502).send({ error: 'fetch_failed', detail: (e as Error).message.slice(0, 120) });
     }
     const category = isCategory(req.body?.category) ? req.body.category : guessCategory(q.title);
-    const id = addProduct({ store: parsed.store, extId: parsed.extId, title: q.title, category, url: q.url, source: 'user' });
+    const id = addProduct({ store: parsed.store, extId: parsed.extId, title: q.title, category, url: q.url, source: 'user', image: q.image });
     getDb().prepare('UPDATE price_products SET enabled = 1 WHERE id = ?').run(id);
     recordPoint(id, q.price, q.currency, q.inStock);
     audit(req.session!.userId, 'prices_add', { store: parsed.store, extId: parsed.extId });
@@ -307,6 +316,28 @@ export async function pricesRoutes(app: FastifyInstance) {
     if (!r.changes) return reply.code(404).send({ error: 'not_found' });
     audit(req.session!.userId, 'prices_remove', { id: Number(req.params.id) });
     return { ok: true };
+  });
+
+  /** Product picture, fetched once from the store and kept on disk (var/prices-img), so pages never hot-link the store. */
+  app.get<{ Params: { id: string } }>('/api/prices/:id/image', { preHandler: requireAuth }, async (req, reply) => {
+    const id = Number(req.params.id);
+    const row = getDb().prepare('SELECT image FROM price_products WHERE id = ?').get(id) as { image: string | null } | undefined;
+    if (!row?.image || !/^https:\/\/(m\.media-amazon\.com|images-na\.ssl-images-amazon\.com|cdn\.microless\.com)\//.test(row.image)) return reply.code(404).send({ error: 'no_image' });
+    const dir = path.join(config.dataDir, 'prices-img');
+    const file = path.join(dir, `${id}.jpg`);
+    if (!fs.existsSync(file)) {
+      try {
+        const res = await fetch(row.image, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(20_000) });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const buf = Buffer.from(await res.arrayBuffer());
+        if (buf.length > 3 * 1024 * 1024) throw new Error('too large');
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(file, buf);
+      } catch {
+        return reply.code(404).send({ error: 'no_image' });
+      }
+    }
+    return reply.header('Content-Type', 'image/jpeg').header('Cache-Control', 'private, max-age=604800').send(fs.createReadStream(file));
   });
 
   app.post('/api/prices/refresh', { preHandler: requireAuth }, async () => ({ task: refreshNow() }));

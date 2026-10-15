@@ -314,6 +314,7 @@ const MIGRATIONS: string[] = [
      PRIMARY KEY(product_id, at)
    );
    CREATE INDEX price_points_at ON price_points(product_id, at);`,
+  `ALTER TABLE price_products ADD COLUMN image TEXT;`,
 ];
 
 let db: DatabaseSync | null = null;

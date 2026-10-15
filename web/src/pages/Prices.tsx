@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowClockwise16Regular, ArrowDown16Filled, ArrowUp16Filled, Open16Regular, Subtract16Filled } from '@fluentui/react-icons';
+import { ArrowClockwise16Regular, ArrowDown16Filled, ArrowUp16Filled, Checkmark16Filled, Open16Regular, Subtract16Filled } from '@fluentui/react-icons';
 import { ApiError, api } from '../lib/api';
 import { useI18n, type MessageKey } from '../i18n';
 import { useConfirm } from '../components/ConfirmProvider';
@@ -8,13 +8,17 @@ import { Chart } from '../components/Chart';
 
 /**
  * Prices: PC part prices (GPU, RAM, SSD, HDD) in the UAE and the US with the moves over
- * 1 / 3 / 7 / 30 days. Market cards per category, then the tracked listings, then one listing's history.
+ * 1 / 3 / 7 / 30 days. Market cards per category, the tracked listings (with pictures), one listing's
+ * history, and a side-by-side compare of up to four listings in USD.
  */
 type Category = 'gpu' | 'ram' | 'ssd' | 'hdd';
 type Market = 'uae' | 'us';
 type Win = 'd1' | 'd3' | 'd7' | 'd30';
 const CATS: Category[] = ['gpu', 'ram', 'ssd', 'hdd'];
 const WINS: Win[] = ['d1', 'd3', 'd7', 'd30'];
+/** Fixed series colors for compare (validated: CVD-safe, ≥3:1 on the light surface). */
+const COLORS = ['#2f6fe4', '#d97706', '#7c3aed', '#0d9488'];
+const MAX_COMPARE = 4;
 
 interface Product {
   id: number;
@@ -25,6 +29,7 @@ interface Product {
   category: Category;
   url: string;
   source: string;
+  image: boolean;
   price: number | null;
   currency: 'AED' | 'USD';
   usd: number | null;
@@ -49,12 +54,19 @@ interface Data {
   lastRefresh: number | null;
   aedPerUsd: number;
 }
+interface HistPoint {
+  at: number;
+  price: number | null;
+  usd: number | null;
+  inStock: boolean;
+}
 interface History {
   product: Product;
-  points: { at: number; price: number | null; usd: number | null; inStock: boolean }[];
+  points: HistPoint[];
 }
 
 const money = (v: number | null, cur: string) => (v === null ? '—' : `${cur === 'AED' ? 'AED' : '$'} ${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`);
+const usd = (v: number | null) => (v === null ? '—' : `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`);
 
 function Move({ v, big = false }: { v: number | null; big?: boolean }) {
   const { t } = useI18n();
@@ -71,6 +83,27 @@ function Move({ v, big = false }: { v: number | null; big?: boolean }) {
   );
 }
 
+function Thumb({ p, size = 48 }: { p: Product; size?: number }) {
+  const [broken, setBroken] = useState(false);
+  const cls = 'shrink-0 rounded-lg bg-white object-contain p-0.5 ring-1 ring-line';
+  if (!p.image || broken) return <span className={`${cls} flex items-center justify-center text-[10px] uppercase text-muted`} style={{ width: size, height: size }}>{p.category}</span>;
+  return <img src={`/api/prices/${p.id}/image`} alt="" width={size} height={size} loading="lazy" className={cls} style={{ width: size, height: size }} onError={() => setBroken(true)} />;
+}
+
+/** Histories of the compared listings on one time axis (USD), one series per listing. */
+function mergeSeries(hs: History[]): [number[], ...(number | null)[][]] {
+  const times = [...new Set(hs.flatMap((h) => h.points.map((p) => Math.round(p.at / 60_000) * 60)))].sort((a, b) => a - b);
+  const cols = hs.map((h) => {
+    const m = new Map(h.points.map((p) => [Math.round(p.at / 60_000) * 60, p.usd]));
+    let last: number | null = null;
+    return times.map((t) => {
+      if (m.has(t)) last = m.get(t) ?? last;
+      return last;
+    });
+  });
+  return [times, ...cols];
+}
+
 export function Prices() {
   const { t, formatRelative } = useI18n();
   const ask = useConfirm();
@@ -80,6 +113,8 @@ export function Prices() {
   const [win, setWin] = useState<Win>('d7');
   const [sort, setSort] = useState<'change' | 'price' | 'name'>('change');
   const [sel, setSel] = useState<History | null>(null);
+  const [picked, setPicked] = useState<number[]>([]);
+  const [compare, setCompare] = useState<History[] | null>(null);
   const [url, setUrl] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -128,9 +163,16 @@ export function Prices() {
     if (!(await ask({ title: t('prices.remove'), body: <p>{p.title}</p>, confirmLabel: t('prices.remove'), danger: true }))) return;
     await api(`/api/prices/products/${p.id}`, { method: 'DELETE' });
     setSel(null);
+    setPicked((xs) => xs.filter((x) => x !== p.id));
     await load();
   };
   const open = (p: Product) => api<History>(`/api/prices/${p.id}/history?days=90`).then(setSel);
+  const togglePick = (id: number) => setPicked((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : xs.length >= MAX_COMPARE ? xs : [...xs, id]));
+  const runCompare = async () => {
+    const hs = await Promise.all(picked.map((id) => api<History>(`/api/prices/${id}/history?days=90`)));
+    setCompare(hs);
+    setSel(null);
+  };
 
   useEffect(() => setShowAll(false), [market, cat]);
   const list = useMemo(() => {
@@ -144,6 +186,7 @@ export function Prices() {
   }, [data, market, cat, win, sort]);
 
   const chip = (on: boolean) => `rounded-full px-3 py-1 text-sm ${on ? 'bg-primary text-white' : 'bg-surface text-ink shadow-card'}`;
+  const localFromUsd = (v: number | null, p: Product) => (v === null ? null : p.currency === 'AED' ? v * (data?.aedPerUsd ?? 3.6725) : v);
 
   return (
     <>
@@ -190,9 +233,12 @@ export function Prices() {
                 </div>
                 <div className="mt-1 text-xs text-muted">{ix ? t('prices.tracked', { n: ix.tracked, s: ix.inStock }) : '…'}</div>
                 {ix?.cheapest && (
-                  <div className="mt-2 truncate text-xs text-ink" title={ix.cheapest.title}>
-                    <span className="text-muted">{t('prices.cheapest')}: </span>
-                    <span dir="ltr">{money(ix.cheapest.price, ix.cheapest.currency)}</span>
+                  <div className="mt-2 flex items-center gap-2 text-xs text-ink" title={ix.cheapest.title}>
+                    <Thumb p={ix.cheapest} size={28} />
+                    <span className="min-w-0">
+                      <span className="block text-muted">{t('prices.cheapest')}</span>
+                      <span dir="ltr">{money(ix.cheapest.price, ix.cheapest.currency)}</span>
+                    </span>
                   </div>
                 )}
               </button>
@@ -201,6 +247,102 @@ export function Prices() {
         </div>
 
         {data && data.products.length === 0 && <p className="text-sm text-muted">{t('prices.noData')}</p>}
+
+        {/* Compare */}
+        {compare && compare.length > 0 && (
+          <Card title={t('prices.compare')} action={<button type="button" className="text-sm text-muted" onClick={() => setCompare(null)}>✕</button>}>
+            {(() => {
+              const cheapest = compare.filter((h) => h.product.usd !== null && h.product.inStock).sort((a, b) => (a.product.usd as number) - (b.product.usd as number))[0]?.product.id;
+              return (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-start text-muted">
+                          <th className="py-1 pe-2 text-start font-medium" />
+                          {compare.map((h, i) => (
+                            <th key={h.product.id} className="py-1 pe-2 text-start font-medium">
+                              <span className="inline-block size-2.5 rounded-full align-middle" style={{ background: COLORS[i] }} aria-hidden />{' '}
+                              <Thumb p={h.product} size={40} />
+                              <span className="mt-1 line-clamp-2 max-w-[9rem] text-ink" title={h.product.title}>
+                                {h.product.title}
+                              </span>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-line">
+                        <tr>
+                          <td className="py-1 pe-2 text-muted">{t('prices.store')}</td>
+                          {compare.map((h) => (
+                            <td key={h.product.id} className="py-1 pe-2">{h.product.storeName}</td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td className="py-1 pe-2 text-muted">{t('prices.price')}</td>
+                          {compare.map((h) => (
+                            <td key={h.product.id} className="py-1 pe-2 font-medium text-ink" dir="ltr">
+                              {money(h.product.price, h.product.currency)}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td className="py-1 pe-2 text-muted">{t('prices.usd')}</td>
+                          {compare.map((h) => (
+                            <td key={h.product.id} className={`py-1 pe-2 ${h.product.id === cheapest ? 'font-semibold text-ok' : 'text-ink'}`} dir="ltr">
+                              {usd(h.product.usd)} {h.product.id === cheapest && <span className="text-[10px]">· {t('prices.cheaper')}</span>}
+                            </td>
+                          ))}
+                        </tr>
+                        {WINS.map((w) => (
+                          <tr key={w}>
+                            <td className="py-1 pe-2 text-muted">{t(`prices.${w}` as MessageKey)}</td>
+                            {compare.map((h) => (
+                              <td key={h.product.id} className="py-1 pe-2">
+                                <Move v={h.product.change[w]} />
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                        <tr>
+                          <td className="py-1 pe-2 text-muted">{t('prices.low30')}</td>
+                          {compare.map((h) => (
+                            <td key={h.product.id} className="py-1 pe-2" dir="ltr">{money(localFromUsd(h.product.low30, h.product), h.product.currency)}</td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td className="py-1 pe-2 text-muted">{t('prices.high30')}</td>
+                          {compare.map((h) => (
+                            <td key={h.product.id} className="py-1 pe-2" dir="ltr">{money(localFromUsd(h.product.high30, h.product), h.product.currency)}</td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td className="py-1 pe-2 text-muted">{t('prices.inStock')}</td>
+                          {compare.map((h) => (
+                            <td key={h.product.id} className="py-1 pe-2">{h.product.inStock ? <Checkmark16Filled className="text-ok" aria-label={t('prices.inStock')} /> : <span className="text-muted">{t('prices.outOfStock')}</span>}</td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  {compare.some((h) => h.points.filter((p) => p.usd !== null).length >= 2) && (
+                    <div className="mt-3">
+                      <Chart data={mergeSeries(compare)} series={compare.map((h, i) => ({ label: h.product.title.slice(0, 24), color: COLORS[i] }))} height={200} fmt={(v) => usd(v)} />
+                      <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+                        {compare.map((h, i) => (
+                          <li key={h.product.id} className="inline-flex items-center gap-1">
+                            <span className="inline-block size-2.5 rounded-full" style={{ background: COLORS[i] }} aria-hidden />
+                            {h.product.title.slice(0, 40)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </Card>
+        )}
 
         {/* Listings */}
         {list.length > 0 && (
@@ -214,26 +356,40 @@ export function Prices() {
               </select>
             }
           >
+            <p className="mb-1 text-xs text-muted">{t('prices.compareHint')}</p>
             <ul className="divide-y divide-line">
-              {(showAll ? list : list.slice(0, 15)).map((p) => (
-                <li key={p.id}>
-                  <button type="button" onClick={() => void open(p)} className="flex w-full items-center gap-3 py-2 text-start">
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm text-ink">{p.title}</span>
-                      <span className="block text-xs text-muted">
-                        {p.storeName} · {t(`prices.cat.${p.category}` as MessageKey)}
-                        {!p.inStock && <span className="ms-2 rounded-full bg-line px-1.5 text-[10px]">{t('prices.outOfStock')}</span>}
+              {(showAll ? list : list.slice(0, 15)).map((p) => {
+                const on = picked.includes(p.id);
+                return (
+                  <li key={p.id} className="flex items-center gap-2 py-2">
+                    <button
+                      type="button"
+                      onClick={() => togglePick(p.id)}
+                      aria-pressed={on}
+                      aria-label={on ? t('prices.picked') : t('prices.pick')}
+                      className={`flex size-6 shrink-0 items-center justify-center rounded-md border ${on ? 'border-primary bg-primary text-white' : 'border-line bg-surface text-transparent'}`}
+                    >
+                      <Checkmark16Filled aria-hidden />
+                    </button>
+                    <button type="button" onClick={() => void open(p)} className="flex min-w-0 flex-1 items-center gap-3 text-start">
+                      <Thumb p={p} />
+                      <span className="min-w-0 flex-1">
+                        <span className="line-clamp-2 text-sm text-ink">{p.title}</span>
+                        <span className="block text-xs text-muted">
+                          {p.storeName} · {t(`prices.cat.${p.category}` as MessageKey)}
+                          {!p.inStock && <span className="ms-2 rounded-full bg-line px-1.5 text-[10px]">{t('prices.outOfStock')}</span>}
+                        </span>
                       </span>
-                    </span>
-                    <span className="shrink-0 text-end">
-                      <span className="block text-sm font-medium text-ink" dir="ltr">
-                        {money(p.price, p.currency)}
+                      <span className="shrink-0 text-end">
+                        <span className="block text-sm font-medium text-ink" dir="ltr">
+                          {money(p.price, p.currency)}
+                        </span>
+                        <Move v={p.change[win]} />
                       </span>
-                      <Move v={p.change[win]} />
-                    </span>
-                  </button>
-                </li>
-              ))}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
             {!showAll && list.length > 15 && (
               <button type="button" onClick={() => setShowAll(true)} className="mt-2 text-sm text-primary-ink">
@@ -246,29 +402,29 @@ export function Prices() {
         {/* One listing */}
         {sel && (
           <Card title={t('prices.history')} action={<button type="button" className="text-sm text-muted" onClick={() => setSel(null)}>✕</button>}>
-            <p className="text-sm text-ink">{sel.product.title}</p>
-            <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted" dir="ltr">
-              <span className="text-base font-semibold text-ink">{money(sel.product.price, sel.product.currency)}</span>
-              {WINS.map((w) => (
-                <span key={w} className="inline-flex items-center gap-1">
-                  {t(`prices.${w}` as MessageKey)} <Move v={sel.product.change[w]} />
-                </span>
-              ))}
-              <span>
-                {t('prices.low30')} {money(sel.product.low30 === null ? null : sel.product.currency === 'AED' ? sel.product.low30 * (data?.aedPerUsd ?? 3.6725) : sel.product.low30, sel.product.currency)}
-              </span>
-              <span>
-                {t('prices.high30')} {money(sel.product.high30 === null ? null : sel.product.currency === 'AED' ? sel.product.high30 * (data?.aedPerUsd ?? 3.6725) : sel.product.high30, sel.product.currency)}
-              </span>
-            </p>
+            <div className="flex items-start gap-3">
+              <Thumb p={sel.product} size={72} />
+              <div className="min-w-0">
+                <p className="text-sm text-ink">{sel.product.title}</p>
+                <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted" dir="ltr">
+                  <span className="text-base font-semibold text-ink">{money(sel.product.price, sel.product.currency)}</span>
+                  {WINS.map((w) => (
+                    <span key={w} className="inline-flex items-center gap-1">
+                      {t(`prices.${w}` as MessageKey)} <Move v={sel.product.change[w]} />
+                    </span>
+                  ))}
+                  <span>
+                    {t('prices.low30')} {money(localFromUsd(sel.product.low30, sel.product), sel.product.currency)}
+                  </span>
+                  <span>
+                    {t('prices.high30')} {money(localFromUsd(sel.product.high30, sel.product), sel.product.currency)}
+                  </span>
+                </p>
+              </div>
+            </div>
             <div className="mt-3">
               {sel.points.filter((p) => p.price !== null).length >= 2 ? (
-                <Chart
-                  data={[sel.points.map((p) => Math.round(p.at / 1000)), sel.points.map((p) => p.price)]}
-                  series={[{ label: sel.product.currency, color: '#2f6fe4' }]}
-                  height={180}
-                  fmt={(v) => money(v, sel.product.currency)}
-                />
+                <Chart data={[sel.points.map((p) => Math.round(p.at / 1000)), sel.points.map((p) => p.price)]} series={[{ label: sel.product.currency, color: COLORS[0] }]} height={180} fmt={(v) => money(v, sel.product.currency)} />
               ) : (
                 <p className="text-xs text-muted">{t('prices.noData')}</p>
               )}
@@ -277,6 +433,9 @@ export function Prices() {
               <a href={sel.product.url} target="_blank" rel="noreferrer" className="inline-flex min-h-10 flex-1 items-center justify-center gap-1 rounded-xl bg-canvas text-sm text-primary-ink">
                 <Open16Regular aria-hidden /> {t('prices.open')}
               </a>
+              <Button variant="secondary" onClick={() => togglePick(sel.product.id)}>
+                {picked.includes(sel.product.id) ? t('prices.picked') : t('prices.pick')}
+              </Button>
               <Button variant="ghost" onClick={() => void remove(sel.product)}>
                 {t('prices.remove')}
               </Button>
@@ -301,6 +460,21 @@ export function Prices() {
           </form>
         </Card>
       </main>
+
+      {/* Compare bar: appears once something is ticked */}
+      {picked.length > 0 && (
+        <div className="fixed inset-x-0 bottom-0 z-30 safe-bottom pointer-events-none">
+          <div className="pointer-events-auto mx-auto mb-3 flex max-w-md items-center gap-2 rounded-2xl bg-surface p-2 shadow-card">
+            <span className="ps-2 text-sm text-muted">{picked.length}/{MAX_COMPARE}</span>
+            <Button className="flex-1" disabled={picked.length < 2} onClick={() => void runCompare()}>
+              {t('prices.compareN', { n: picked.length })}
+            </Button>
+            <Button variant="ghost" onClick={() => { setPicked([]); setCompare(null); }}>
+              {t('prices.clear')}
+            </Button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

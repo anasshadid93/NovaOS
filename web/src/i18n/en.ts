@@ -1380,6 +1380,17 @@ export const en = {
   'prices.seed': "Watchlist",
   'prices.reset': "Rebuild watchlist",
   'prices.resetBody': "Deletes all tracked listings and their history, then searches the stores again.",
+  'prices.compare': "Compare",
+  'prices.compareHint': "Tick up to 4 listings to see them side by side (prices in USD so stores compare).",
+  'prices.compareN': "Compare ({n})",
+  'prices.clear': "Clear",
+  'prices.inStock': "In stock",
+  'prices.store': "Store",
+  'prices.price': "Price",
+  'prices.usd': "In USD",
+  'prices.cheaper': "cheapest",
+  'prices.pick': "Add to compare",
+  'prices.picked': "In compare",
 } as const;
 
 export type MessageKey = keyof typeof en;
