@@ -27,7 +27,10 @@ const SEEDS: Record<Category, string[]> = {
 };
 const PER_QUERY = 3;
 const STORE_ORDER: StoreId[] = ['amazon_ae', 'amazon_com'];
-const REFRESH_EVERY = 12 * 3600_000;
+/** Runs hourly with a small budget per store, so Amazon never sees a burst (bursts end in captchas). */
+const REFRESH_EVERY = 3600_000;
+const QUOTES_PER_STORE = 12;
+const SEARCHES_PER_RUN = 4;
 
 interface ProductRow {
   id: number;
@@ -177,6 +180,7 @@ export function history(productId: number, days = 90): PointRow[] {
 registerTask('prices.refresh', async (ctx, params) => {
   const seed = params.seed !== false;
   const db = getDb();
+  let searches = 0;
   if (seed) {
     ctx.progress('discover');
     for (const category of CATEGORIES) {
@@ -185,7 +189,8 @@ registerTask('prices.refresh', async (ctx, params) => {
         if (have >= SEEDS[category].length * PER_QUERY) continue;
         for (const q of SEEDS[category]) {
           const key = `prices.seeded:${store}:${q}`;
-          if (kvGet(key)) continue;
+          if (kvGet(key) || searches >= SEARCHES_PER_RUN) continue;
+          searches++;
           try {
             // Search cards don't always show a price (graphics cards often say "See options"); the quote does.
             const hits = (await search(store, q, 10)).filter((h) => !JUNK.test(h.title) && MATCHES[category].test(h.title)).slice(0, PER_QUERY);
@@ -201,7 +206,17 @@ registerTask('prices.refresh', async (ctx, params) => {
     }
   }
   ctx.progress('quote');
-  const products = db.prepare('SELECT * FROM price_products WHERE enabled = 1').all() as unknown as ProductRow[];
+  // The stalest listings first, a handful per store: the whole list cycles every few hours.
+  const all = db
+    .prepare('SELECT p.*, (SELECT MAX(at) FROM price_points x WHERE x.product_id = p.id) AS last_at FROM price_products p WHERE p.enabled = 1 ORDER BY last_at ASC NULLS FIRST')
+    .all() as unknown as (ProductRow & { last_at: number | null })[];
+  const perStore = new Map<StoreId, number>();
+  const products = all.filter((p) => {
+    const n = perStore.get(p.store) ?? 0;
+    if (n >= QUOTES_PER_STORE) return false;
+    perStore.set(p.store, n + 1);
+    return true;
+  });
   const before = new Map(summaries().map((s) => [s.id, s]));
   let ok = 0;
   let failed = 0;
@@ -224,7 +239,7 @@ registerTask('prices.refresh', async (ctx, params) => {
     }
   }
   kvSet('prices.lastRefresh', String(Date.now()));
-  ctx.log(`Quoted ${ok} listings, ${failed} failed`);
+  ctx.log(`Quoted ${ok} of ${all.length} listings this run (${failed} failed); the rest follow in the next runs`);
   if (drops.length) {
     const text = drops.slice(0, 6).join('\n');
     void notify('Price drop', text, '/prices');
@@ -250,7 +265,7 @@ export function startPricesLoop(): () => void {
     if (Date.now() - last > REFRESH_EVERY && !refreshing) refreshNow();
   };
   const t = setInterval(tick, 10 * 60_000);
-  setTimeout(tick, 90_000);
+  setTimeout(tick, 5 * 60_000);
   return () => clearInterval(t);
 }
 
