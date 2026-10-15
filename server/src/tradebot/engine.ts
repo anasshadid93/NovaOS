@@ -249,7 +249,11 @@ function spawnJob(input: JobInput): ChildProcess {
   const scoped = fs.existsSync('/usr/bin/systemd-run') && fs.existsSync(`${runtime}/bus`);
   const env = { ...process.env, XDG_RUNTIME_DIR: runtime, DBUS_SESSION_BUS_ADDRESS: `unix:path=${runtime}/bus` };
   const p = scoped
-    ? spawn('/usr/bin/systemd-run', ['--user', '--scope', '--quiet', '--collect', '-p', 'MemoryMax=1500M', '-p', 'CPUWeight=20', '--nice=10', `--unit=minismanager-tradebot-${Date.now()}`, process.execPath, ...args], { env, stdio: ['ignore', 'pipe', 'pipe'] })
+    ? spawn(
+        '/usr/bin/systemd-run',
+        ['--user', '--scope', '--quiet', '--collect', '-p', 'MemoryMax=1500M', '-p', 'CPUWeight=20', '--nice=10', `--unit=minismanager-tradebot-${Date.now()}`, process.execPath, ...args],
+        { env, stdio: ['ignore', 'pipe', 'pipe'] },
+      )
     : spawn(process.execPath, args, { env, stdio: ['ignore', 'pipe', 'pipe'] });
   p.on('exit', () => fs.rmSync(f, { force: true }));
   return p;
@@ -328,7 +332,18 @@ class Engine {
       const b = this.brain;
       this.writeJson('brain.json', { ...b, level: level(b.xp), insights: insights(b, (k) => labelOf(k)), points: +(b.tradingPoints + b.judgmentPoints).toFixed(2), savedAt: Date.now() });
       const lv = level(b.xp);
-      this.st.brain = { enabled: b.cfg.enabled, points: +(b.tradingPoints + b.judgmentPoints).toFixed(2), trading: b.tradingPoints, judgment: b.judgmentPoints, xp: b.xp, level: lv.level, title: lv.title, progress: +lv.progress.toFixed(3), last: b.thoughts[0] ?? null, lesson: b.lessons[0] ?? null };
+      this.st.brain = {
+        enabled: b.cfg.enabled,
+        points: +(b.tradingPoints + b.judgmentPoints).toFixed(2),
+        trading: b.tradingPoints,
+        judgment: b.judgmentPoints,
+        xp: b.xp,
+        level: lv.level,
+        title: lv.title,
+        progress: +lv.progress.toFixed(3),
+        last: b.thoughts[0] ?? null,
+        lesson: b.lessons[0] ?? null,
+      };
       this.dirty = true;
     }
     if (!this.dirty) return;
@@ -527,7 +542,10 @@ class Engine {
   private lesson(l: ReturnType<typeof learn>) {
     this.brainDirty = true;
     if (this.st.notify.lessons)
-      void postHook({ type: 'notice', text: `🧠 <b>Trade Bot</b> ${l.kind === 'win' ? '✅' : l.kind === 'mistake' ? '❌' : l.kind === 'dodged' ? '🛡️' : '😬'} ${l.points >= 0 ? '+' : ''}${l.points.toFixed(2)} نقطة\n${l.text}\n<i>تداول وهمي</i>` });
+      void postHook({
+        type: 'notice',
+        text: `🧠 <b>Trade Bot</b> ${l.kind === 'win' ? '✅' : l.kind === 'mistake' ? '❌' : l.kind === 'dodged' ? '🛡️' : '😬'} ${l.points >= 0 ? '+' : ''}${l.points.toFixed(2)} نقطة\n${l.text}\n<i>تداول وهمي</i>`,
+      });
   }
 
   private tick(sym: string, c: Candle) {
@@ -626,7 +644,18 @@ class Engine {
    * momentum and coin ranking, 8 h carry), read it and act at once — ≈ the next bar's open, like the
    * backtest. Sleeves dropped from the strategy close their trades at their next bar.
    */
+  private portfolioBusy = false;
   private async portfolioStep() {
+    // Fetches inside can take longer than the 60 s interval; a second run would open the same sleeve twice.
+    if (this.portfolioBusy) return;
+    this.portfolioBusy = true;
+    try {
+      await this.portfolioStepInner();
+    } finally {
+      this.portfolioBusy = false;
+    }
+  }
+  private async portfolioStepInner() {
     const st = this.st;
     const p = st.params;
     const weights = sleeveWeights(p);
@@ -655,7 +684,16 @@ class Engine {
       const pkey = `${k}:${JSON.stringify(k === 'donchian' ? p.trend : p[k])}:${weights[k] ?? 0}`;
       const live = weights[k] ? st.active : [];
       const mine = st.positions.filter((x) => sleeveOf(x.tag) === k);
-      const need = k === 'donchian' ? p.trend.N + Math.round((30 * 24) / tf) + 5 : k === 'ema' ? Math.max(p.ema.n * 3, Math.round((30 * 24) / tf)) + 5 : k === 'tsmom' ? Math.max(p.tsmom.L, 31) + 5 : k === 'xsmom' ? p.xsmom.L + 3 : 5;
+      const need =
+        k === 'donchian'
+          ? p.trend.N + Math.round((30 * 24) / tf) + 5
+          : k === 'ema'
+            ? Math.max(p.ema.n * 3, Math.round((30 * 24) / tf)) + 5
+            : k === 'tsmom'
+              ? Math.max(p.tsmom.L, 31) + 5
+              : k === 'xsmom'
+                ? p.xsmom.L + 3
+                : 5;
       // Coin ranking decides for all coins at once, on its rebalance days.
       let ranks: Record<string, -1 | 0 | 1> | null = null;
       if (k === 'xsmom' && this.trendSeen[`xsmom:*`] !== lastOpen + pkey.length && weights.xsmom && isRebalanceDay(lastOpen, p.xsmom.everyDays)) {
@@ -679,10 +717,12 @@ class Engine {
         const pos = mine.find((x) => x.sym === sym);
         const cur = pos ? (pos.side === 'LONG' ? 1 : -1) : 0;
         let target: number;
-        if (!weights[k] || !live.includes(sym)) target = 0; // sleeve or pair switched off: close at its bar
+        if (!weights[k] || !live.includes(sym))
+          target = 0; // sleeve or pair switched off: close at its bar
         else if (k === 'xsmom') {
           if (!isRebalanceDay(lastOpen, p.xsmom.everyDays)) target = cur;
-          else if (!ranks) continue; // ranking needs every coin's bar; try again next minute
+          else if (!ranks)
+            continue; // ranking needs every coin's bar; try again next minute
           else target = ranks[sym] ?? 0;
         } else {
           let funding: [number, number][] | undefined;
@@ -695,13 +735,23 @@ class Engine {
             }
             if (!funding) continue;
           }
-          target = coinTarget(k, bars, i, cur, p, { ema: k === 'ema' ? emaSeries(bars.map((b) => b.c), p.ema.n) : undefined, funding });
+          target = coinTarget(k, bars, i, cur, p, {
+            ema:
+              k === 'ema'
+                ? emaSeries(
+                    bars.map((b) => b.c),
+                    p.ema.n,
+                  )
+                : undefined,
+            funding,
+          });
         }
         this.trendSeen[seenKey] = lastOpen;
         this.trendSeenKey[seenKey] = pkey;
         const vol = k === 'xsmom' || k === 'carry' ? null : annVol(bars, i, tf);
         const ch = k === 'donchian' ? channels(bars, i, p.trend) : null;
-        if (k === 'donchian' && ch) st.trend[sym] = { entry: ch.entry, exit: ch.exit, close: bars[i].c, at: bars[i].t + tfMs, vol: vol && +vol.toFixed(3), w: +trendWeight(vol, p.trend).toFixed(3), target };
+        if (k === 'donchian' && ch)
+          st.trend[sym] = { entry: ch.entry, exit: ch.exit, close: bars[i].c, at: bars[i].t + tfMs, vol: vol && +vol.toFixed(3), w: +trendWeight(vol, p.trend).toFixed(3), target };
         (st.sleeves[k] ??= {})[sym] = { target, at: bars[i].t + tfMs, close: bars[i].c };
         this.touch();
         if (!st.running) continue;
@@ -711,11 +761,24 @@ class Engine {
           if (target !== 0 && st.balance > 1) {
             const used = st.positions.reduce((x, q) => x + q.margin, 0);
             const size = sleeveSizing(k, p, st.balance, weights[k]!, st.active.length, vol);
-            const np = openSleeve(k, { alloc: Math.min(size.alloc, st.balance - used), id: st.nextId++ }, sym, target > 0 ? 'LONG' : 'SHORT', px, size.w, ch ? (target > 0 ? ch.exit : ch.shortExit) : null, p, Date.now());
+            const np = openSleeve(
+              k,
+              { alloc: Math.min(size.alloc, st.balance - used), id: st.nextId++ },
+              sym,
+              target > 0 ? 'LONG' : 'SHORT',
+              px,
+              size.w,
+              ch ? (target > 0 ? ch.exit : ch.shortExit) : null,
+              p,
+              Date.now(),
+            );
             if (np) {
               st.positions.push(np);
               if (st.notify.entry)
-                void postHook({ type: 'notice', text: `📈 <b>Trade Bot</b> ${SLEEVE_AR[k]}: ${np.hedged ? '🛡️ تحوّط وجمع تمويل' : np.side === 'LONG' ? '🟢 LONG' : '🔴 SHORT'} <b>${sym}</b>\nدخول ${fmt(np.entry)}${k === 'donchian' ? ` · الخروج تحت ${fmt(np.sl)}` : ''}\nحجم $${np.size.toFixed(2)}\n<i>تداول وهمي</i>` });
+                void postHook({
+                  type: 'notice',
+                  text: `📈 <b>Trade Bot</b> ${SLEEVE_AR[k]}: ${np.hedged ? '🛡️ تحوّط وجمع تمويل' : np.side === 'LONG' ? '🟢 LONG' : '🔴 SHORT'} <b>${sym}</b>\nدخول ${fmt(np.entry)}${k === 'donchian' ? ` · الخروج تحت ${fmt(np.sl)}` : ''}\nحجم $${np.size.toFixed(2)}\n<i>تداول وهمي</i>`,
+                });
             }
           }
         } else if (pos && ch) pos.sl = pos.side === 'LONG' ? ch.exit : ch.shortExit; // the exit line follows the channel
@@ -802,7 +865,22 @@ class Engine {
       useBrain,
       cacheDir: path.join(config.dataDir, 'tradebot-cache'),
     };
-    this.job = { id: Date.now(), kind, status: 'running', phase: 'download', done: 0, total: 1, note: '', startedAt: Date.now(), endedAt: null, error: null, days, epochs: ho?.epochs, loss: ho?.loss, spaces: ho?.spaces };
+    this.job = {
+      id: Date.now(),
+      kind,
+      status: 'running',
+      phase: 'download',
+      done: 0,
+      total: 1,
+      note: '',
+      startedAt: Date.now(),
+      endedAt: null,
+      error: null,
+      days,
+      epochs: ho?.epochs,
+      loss: ho?.loss,
+      spaces: ho?.spaces,
+    };
     this.hyper = kind === 'hyperopt' ? { epochs: [], best: null } : null;
     if (kind === 'hyperopt') this.writeJson('hyperopt.json', { status: 'running', job: this.job, epochs: [], best: null, spaces: ho!.spaces, loss: ho!.loss });
     this.writeJob();
@@ -847,7 +925,14 @@ class Engine {
     w.on('exit', (code, signal) => {
       if (this.worker !== w) return;
       this.worker = null;
-      if (this.job?.status === 'running') this.finishJob('error', null, signal === 'SIGKILL' || code === 137 ? 'the job ran out of memory (it was stopped; NovaOS is fine)' : `job exited (${code ?? signal}) ${errText.split('\n').filter(Boolean).at(-1) ?? ''}`.trim());
+      if (this.job?.status === 'running')
+        this.finishJob(
+          'error',
+          null,
+          signal === 'SIGKILL' || code === 137
+            ? 'the job ran out of memory (it was stopped; NovaOS is fine)'
+            : `job exited (${code ?? signal}) ${errText.split('\n').filter(Boolean).at(-1) ?? ''}`.trim(),
+        );
     });
     return { ok: true, job: this.job.id };
   }
@@ -894,7 +979,11 @@ class Engine {
     this.worker = null;
     if (!this.st.notify.jobs) return;
     const mins = Math.max(1, Math.round((Date.now() - job.startedAt) / 60_000));
-    if (status === 'error') void postHook({ type: 'notice', text: `⚠️ <b>Trade Bot</b> ما زبط ${job.kind === 'backtest' ? 'الباك تست' : job.kind === 'train' ? 'التدريب' : job.kind === 'walkforward' ? 'الـ Walk-forward' : 'الـ Hyperopt'}\n<code>${(error ?? '').slice(0, 200)}</code>` });
+    if (status === 'error')
+      void postHook({
+        type: 'notice',
+        text: `⚠️ <b>Trade Bot</b> ما زبط ${job.kind === 'backtest' ? 'الباك تست' : job.kind === 'train' ? 'التدريب' : job.kind === 'walkforward' ? 'الـ Walk-forward' : 'الـ Hyperopt'}\n<code>${(error ?? '').slice(0, 200)}</code>`,
+      });
     else if (status === 'done' && data) {
       if (job.kind === 'walkforward') {
         const d = data as { stats: Stats; windows: { testProfitPct: number }[] };
@@ -1052,7 +1141,18 @@ export function tradebotSnapshot() {
     start: st.start,
     hours: st.hours,
     elapsedHours: +(engine.elapsed() / 3600_000).toFixed(2),
-    open: st.positions.map((p) => ({ id: p.id, sym: p.sym, side: p.side, lev: p.lev, entry: p.entry, price: st.prices[p.sym] ?? null, tp: p.tp, sl: p.sl, unrealized: st.prices[p.sym] ? +(pnlOf(p, st.prices[p.sym]) - p.fees + p.funding).toFixed(2) : null, minutes: Math.round((now - p.openedAt) / 60_000) })),
+    open: st.positions.map((p) => ({
+      id: p.id,
+      sym: p.sym,
+      side: p.side,
+      lev: p.lev,
+      entry: p.entry,
+      price: st.prices[p.sym] ?? null,
+      tp: p.tp,
+      sl: p.sl,
+      unrealized: st.prices[p.sym] ? +(pnlOf(p, st.prices[p.sym]) - p.fees + p.funding).toFixed(2) : null,
+      minutes: Math.round((now - p.openedAt) / 60_000),
+    })),
     stats: { ...st.stats, perTag: undefined, weekly: undefined, monthly: undefined, daily: st.stats.daily.slice(0, 7) },
     recent: st.closed.slice(0, 5),
     locks: activeLocks(st.locks, now).filter((l) => l.by !== 'cooldown'),

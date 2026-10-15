@@ -161,7 +161,10 @@ async function yahooDaily(symbol: string): Promise<Daily> {
     /* fetch */
   }
   if (!rows.length) {
-    const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=1575158400&period2=${Math.floor(Date.now() / 1000)}&interval=1d`, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(20_000) });
+    const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=1575158400&period2=${Math.floor(Date.now() / 1000)}&interval=1d`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(20_000),
+    });
     if (!res.ok) throw new Error(`yahoo ${symbol} ${res.status}`);
     const j = (await res.json()) as { chart: { result: { timestamp: number[]; indicators: { quote: { close: (number | null)[] }[] } }[] } };
     const r = j.chart.result[0];

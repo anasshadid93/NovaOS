@@ -1,0 +1,32 @@
+[Unit]
+Description=NovaOS Quant Desk — TradingAgents sidecar (multi-agent market debate)
+After=network-online.target
+Wants=network-online.target
+PartOf=manar.service
+
+[Service]
+Type=simple
+User=@USER@
+Group=@GROUP@
+WorkingDirectory=@DATA_ROOT@/apps/tradingagents
+Environment=QUANT_AGENTS_PORT=7481
+Environment=HOME=@DATA_ROOT@/apps/tradingagents/data
+ExecStart=@DATA_ROOT@/apps/tradingagents/venv/bin/python -I @DATA_ROOT@/apps/tradingagents/server.py
+Restart=on-failure
+RestartSec=5
+
+Nice=10
+CPUWeight=30
+MemoryMax=2G
+TasksMax=64
+
+PrivateTmp=yes
+ProtectSystem=full
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+NoNewPrivileges=yes
+LockPersonality=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

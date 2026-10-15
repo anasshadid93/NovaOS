@@ -123,6 +123,15 @@ fi
 
 systemctl enable --now manar.service
 
+# 4a. Quant Desk agents sidecar (optional): TradingAgents venv + server.py (see docs/quant.md).
+if [[ -f $DATA_ROOT/apps/tradingagents/server.py && -x $DATA_ROOT/apps/tradingagents/venv/bin/python ]]; then
+  backup /etc/systemd/system/novaos-agents.service
+  fill "$DEPLOY/novaos-agents.service.in" >/etc/systemd/system/novaos-agents.service
+  chmod 0644 /etc/systemd/system/novaos-agents.service
+  systemctl daemon-reload
+  systemctl enable --now novaos-agents.service
+fi
+
 # 4b. vision sidecar (optional): only when its models and venv are in place (see docs/vision.md).
 if [[ -f $DATA_ROOT/apps/vision/server.py && -x $DATA_ROOT/apps/vision/venv/bin/python ]]; then
   backup /etc/systemd/system/novaos-vision.service

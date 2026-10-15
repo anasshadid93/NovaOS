@@ -70,6 +70,18 @@ export const PLUGINS: Plugin[] = [
     detail: () => config.visionDir,
   },
   {
+    id: 'agents',
+    needs: { kind: 'install', path: config.agentsDir },
+    enabled: () => fs.existsSync(path.join(config.agentsDir, 'server.py')) && fs.existsSync(path.join(config.agentsDir, 'venv', 'bin', 'python')),
+    detail: () => config.agentsDir,
+  },
+  {
+    id: 'lean',
+    needs: { kind: 'install', path: config.leanDir },
+    enabled: () => fs.existsSync(path.join(config.leanDir, 'venv', 'bin', 'lean')) && fs.existsSync(path.join(config.leanDir, 'workspace', 'lean.json')),
+    detail: () => config.leanDir,
+  },
+  {
     id: 'services',
     needs: { kind: 'file', name: 'services.json' },
     enabled: () => fs.existsSync(varFile('services.json')),

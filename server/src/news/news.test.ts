@@ -65,7 +65,17 @@ describe('trader rules', () => {
     ],
   };
   const prices = { PAXGUSDT: 4000, BTCUSDT: 80000, ETHUSDT: 2400, SOLUSDT: 100 };
-  const sig = { eventId: 1, type: 'war_escalation' as const, assets: ['GOLD', 'BTC', 'OIL'] as const, direction: 'up' as const, confidence: 0.9, importance: 0.95, horizonDays: 10, headline: 'Strikes begin', why: 'escalation' };
+  const sig = {
+    eventId: 1,
+    type: 'war_escalation' as const,
+    assets: ['GOLD', 'BTC', 'OIL'] as const,
+    direction: 'up' as const,
+    confidence: 0.9,
+    importance: 0.95,
+    horizonDays: 10,
+    headline: 'Strikes begin',
+    why: 'escalation',
+  };
 
   it('buys what history backs, skips watch-only assets and bearish history', () => {
     const a = freshAccount(1000);
@@ -112,7 +122,23 @@ describe('trader rules', () => {
     a.dayPnl = -31;
     expect(decide(a, pb, { ...sig, assets: ['GOLD'] }, prices, RULES, 0).skipped[0].why).toMatch(/daily loss/);
     const b = freshAccount(1000);
-    b.positions = [1, 2, 3].map((id) => ({ id, asset: 'BTC' as const, symbol: 'BTCUSDT', eventId: 9, type: 'fed_cut' as const, headline: '', entry: 1, qty: 1, margin: 1, stop: 0, target: 9, peak: 1, openedAt: 0, deadline: 1e15, why: '' }));
+    b.positions = [1, 2, 3].map((id) => ({
+      id,
+      asset: 'BTC' as const,
+      symbol: 'BTCUSDT',
+      eventId: 9,
+      type: 'fed_cut' as const,
+      headline: '',
+      entry: 1,
+      qty: 1,
+      margin: 1,
+      stop: 0,
+      target: 9,
+      peak: 1,
+      openedAt: 0,
+      deadline: 1e15,
+      why: '',
+    }));
     expect(decide(b, pb, { ...sig, assets: ['GOLD'] }, prices, RULES, 0).skipped[0].why).toMatch(/already 3 open/);
   });
 });

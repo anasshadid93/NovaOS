@@ -138,6 +138,13 @@ export const config = {
   visionDir: expand(str('MANAR_VISION_DIR', 'visionDir', path.join(appDataRoot, 'vision'))),
   visionPort: num('MANAR_VISION_PORT', 'visionPort', 7479),
 
+  // ---- Quant Desk (AI trading platform): TradingAgents sidecar + LEAN engine (see docs/quant.md) ----
+  /** Folder with server.py, venv/ and src/ (TradingAgents). Missing = agents off. */
+  agentsDir: expand(str('MANAR_AGENTS_DIR', 'agentsDir', path.join(appDataRoot, 'tradingagents'))),
+  agentsPort: num('MANAR_AGENTS_PORT', 'agentsPort', 7481),
+  /** LEAN workspace: lean CLI venv, projects, data and results. Missing = backtests/live off. */
+  leanDir: expand(str('MANAR_LEAN_DIR', 'leanDir', path.join(appDataRoot, 'lean'))),
+
   // ---- Voice assistant persona (optional; nothing personal ships in the code) ----
   /** How the voice assistant addresses the owner. Empty = "the owner". */
   ownerName: str('MANAR_OWNER_NAME', 'ownerName', ''),

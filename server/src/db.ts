@@ -382,6 +382,17 @@ const MIGRATIONS: string[] = [
      hidden INTEGER NOT NULL DEFAULT 0,
      created_at INTEGER NOT NULL
    );`,
+  // Quant Desk: unified signal bus, agent runs, paper/live book, equity, LEAN runs.
+  `CREATE TABLE quant_signals (id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, source TEXT NOT NULL, asset TEXT NOT NULL, score REAL NOT NULL, confidence REAL NOT NULL, horizon_h INTEGER NOT NULL, expires_at INTEGER NOT NULL, price REAL, price_source TEXT, detail TEXT, ref TEXT NOT NULL);
+   CREATE INDEX quant_signals_asset ON quant_signals(asset, at);
+   CREATE UNIQUE INDEX quant_signals_ref ON quant_signals(source, ref);
+   CREATE TABLE quant_agent_runs (id TEXT PRIMARY KEY, asset TEXT NOT NULL, ticker TEXT NOT NULL, day TEXT NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL, started_at INTEGER, finished_at INTEGER, rating TEXT, score REAL, llm TEXT, reports TEXT, error TEXT);
+   CREATE INDEX quant_agent_runs_asset ON quant_agent_runs(asset, created_at);
+   CREATE TABLE quant_orders (id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, mode TEXT NOT NULL, asset TEXT NOT NULL, side TEXT NOT NULL, qty REAL NOT NULL, price REAL NOT NULL, notional REAL NOT NULL, fee REAL NOT NULL, reason TEXT NOT NULL, idem TEXT NOT NULL UNIQUE, position_id INTEGER, signals TEXT, status TEXT NOT NULL);
+   CREATE TABLE quant_positions (id INTEGER PRIMARY KEY AUTOINCREMENT, mode TEXT NOT NULL, asset TEXT NOT NULL, qty REAL NOT NULL, entry REAL NOT NULL, opened_at INTEGER NOT NULL, stop REAL NOT NULL, target REAL, high REAL NOT NULL, deadline INTEGER, closed_at INTEGER, exit REAL, pnl REAL, reason TEXT, score REAL, detail TEXT);
+   CREATE INDEX quant_positions_open ON quant_positions(mode, closed_at);
+   CREATE TABLE quant_equity (mode TEXT NOT NULL, at INTEGER NOT NULL, equity REAL NOT NULL, cash REAL NOT NULL, exposure REAL NOT NULL, PRIMARY KEY(mode, at));
+   CREATE TABLE quant_lean_runs (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, created_at INTEGER NOT NULL, finished_at INTEGER, status TEXT NOT NULL, params TEXT, stats TEXT, equity TEXT, log TEXT, folder TEXT);`,
 ];
 
 let db: DatabaseSync | null = null;

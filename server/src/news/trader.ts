@@ -69,7 +69,25 @@ export interface Rules {
   sentimentExit: number;
   sentimentHours: number;
 }
-export const RULES: Rules = { assets: DEFAULT_TRADABLE, startBalance: 1000, scanEveryMin: 10, riskPct: 5, maxOpen: 3, stopPct: 4, targetCapPct: 8, targetMinPct: 3, trailArmPct: 3, trailPct: 3, dailyLossPct: 3, minConfidence: 0.6, minReliability: 0.6, minAvgMove: 2, sentimentEntry: 0.8, sentimentExit: -0.4, sentimentHours: 48 };
+export const RULES: Rules = {
+  assets: DEFAULT_TRADABLE,
+  startBalance: 1000,
+  scanEveryMin: 10,
+  riskPct: 5,
+  maxOpen: 3,
+  stopPct: 4,
+  targetCapPct: 8,
+  targetMinPct: 3,
+  trailArmPct: 3,
+  trailPct: 3,
+  dailyLossPct: 3,
+  minConfidence: 0.6,
+  minReliability: 0.6,
+  minAvgMove: 2,
+  sentimentEntry: 0.8,
+  sentimentExit: -0.4,
+  sentimentHours: 48,
+};
 
 export interface EventSignal {
   eventId: number;
@@ -107,18 +125,28 @@ export function saveAccount(a: Account) {
   a.skipped = a.skipped.slice(0, 100);
   a.tradedEvents = a.tradedEvents.slice(-500);
   fs.mkdirSync(config.dataDir, { recursive: true });
-  fs.writeFileSync(FILE(), JSON.stringify(a, null, 1));
+  const tmp = `${FILE()}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(a, null, 1));
+  fs.renameSync(tmp, FILE());
 }
 
 const r2 = (x: number) => Math.round(x * 100) / 100;
 
 /** Which trades a fresh event justifies. Returns the positions to open, and the reasons it skipped. */
-export function decide(a: Account, pb: Playbook | null, sig: EventSignal, prices: Record<string, number>, rules = RULES, now = Date.now()): { open: Position[]; skipped: { asset: Asset; why: string }[]; closeAssets: Asset[] } {
+export function decide(
+  a: Account,
+  pb: Playbook | null,
+  sig: EventSignal,
+  prices: Record<string, number>,
+  rules = RULES,
+  now = Date.now(),
+): { open: Position[]; skipped: { asset: Asset; why: string }[]; closeAssets: Asset[] } {
   const open: Position[] = [];
   const skipped: { asset: Asset; why: string }[] = [];
   const closeAssets: Asset[] = [];
   if (!a.running) return { open, skipped: [{ asset: sig.assets[0], why: 'paused' }], closeAssets };
   if (a.tradedEvents.includes(sig.eventId)) return { open, skipped, closeAssets };
+  rollDay(a, now);
   const dayLoss = -a.dayPnl / a.balance;
   for (const asset of sig.assets) {
     const symbol = rules.assets.includes(asset) ? SYMBOLS[asset].symbol : null;
@@ -200,7 +228,18 @@ export function applyOpen(a: Account, ps: Position[], eventId: number) {
   if (ps.length) a.tradedEvents.push(eventId);
 }
 
+/** Rolls the daily P&L counter when the (UTC) day changes; called by every path that uses the day cap. */
+export function rollDay(a: Account, now = Date.now()) {
+  if (!now) return; // tests pass a fixed epoch-0 clock; only a real clock rolls the day
+  const d = new Date(now).toISOString().slice(0, 10);
+  if (a.day !== d) {
+    a.day = d;
+    a.dayPnl = 0;
+  }
+}
+
 export function close(a: Account, p: Position, exit: number, reason: Closed['reason'], now = Date.now()): Closed {
+  rollDay(a, now);
   const pnl = r2((exit - p.entry) * p.qty - p.margin * 0.001 * 2); // 0.1% fee each way, like spot
   const c: Closed = { ...p, exit, pnl, pct: r2(((exit - p.entry) / p.entry) * 100), closedAt: now, reason };
   a.positions = a.positions.filter((x) => x.id !== p.id);
@@ -236,7 +275,13 @@ export function equity(a: Account, prices: Record<string, number>) {
  * every event of the last N hours (direction × confidence × importance, decaying with age).
  * Enter long when the mood is clearly positive and nothing is held; leave when it turns negative.
  */
-export function moodTrades(a: Account, scores: Partial<Record<Asset, { score: number; drivers: string[] }>>, prices: Record<string, number>, rules = RULES, now = Date.now()): { open: Position[]; closeAssets: Asset[] } {
+export function moodTrades(
+  a: Account,
+  scores: Partial<Record<Asset, { score: number; drivers: string[] }>>,
+  prices: Record<string, number>,
+  rules = RULES,
+  now = Date.now(),
+): { open: Position[]; closeAssets: Asset[] } {
   const open: Position[] = [];
   const closeAssets: Asset[] = [];
   if (!a.running) return { open, closeAssets };

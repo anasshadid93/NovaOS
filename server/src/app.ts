@@ -27,6 +27,7 @@ import { selfUpdateRoutes } from './system/selfupdate.js';
 import { pricesRoutes, startPricesLoop } from './prices/prices.js';
 import { newsRoutes, startNewsTrader } from './news/news.js';
 import { startVision, visionRoutes } from './vision/vision.js';
+import { quantRoutes, startQuant } from './quant/quant.js';
 import { metricsRoutes } from './metrics/routes.js';
 import { storeRoutes } from './store/routes.js';
 import { systemRoutes } from './system/routes.js';
@@ -120,6 +121,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   await app.register(pricesRoutes);
   await app.register(newsRoutes);
   await app.register(visionRoutes);
+  await app.register(quantRoutes);
   await app.register(credentialRoutes);
   await app.register(extractRoutes);
   await app.register(metricsRoutes);
@@ -165,6 +167,9 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   // Vision sidecar (photo search, people): only when its folder with the models exists.
   const stopVision = startVision();
   app.addHook('onClose', async () => stopVision());
+  // Quant Desk: signal engine + paper book always; agents/LEAN/live only when installed/authorised.
+  const stopQuant = startQuant();
+  app.addHook('onClose', async () => stopQuant());
   // Nightly backups to the Toshiba (backup/backup.ts).
   const stopBackups = startBackupLoop();
   app.addHook('onClose', async () => stopBackups());

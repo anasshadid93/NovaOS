@@ -32,8 +32,20 @@ export const FEEDS: Feed[] = [
   { id: 'coindesk', name: 'CoinDesk', url: 'https://www.coindesk.com/arc/outboundfeeds/rss/', lang: 'en', kind: 'crypto' },
   { id: 'theblock', name: 'The Block', url: 'https://www.theblock.co/rss.xml', lang: 'en', kind: 'crypto' },
   { id: 'cointelegraph', name: 'Cointelegraph', url: 'https://cointelegraph.com/rss', lang: 'en', kind: 'crypto' },
-  { id: 'gnews_commod', name: 'Google News · oil, gold, war', url: 'https://news.google.com/rss/search?q=oil+OR+gold+OR+bitcoin+OR+war+OR+tariffs+OR+sanctions&hl=en-US&gl=US&ceid=US:en', lang: 'en', kind: 'markets' },
-  { id: 'gnews_ar', name: 'Google News · أسواق', url: 'https://news.google.com/rss/search?q=%D8%A7%D9%84%D9%86%D9%81%D8%B7+OR+%D8%A7%D9%84%D8%B0%D9%87%D8%A8+OR+%D8%A8%D9%8A%D8%AA%D9%83%D9%88%D9%8A%D9%86+OR+%D8%AD%D8%B1%D8%A8&hl=ar&gl=AE&ceid=AE:ar', lang: 'ar', kind: 'markets' },
+  {
+    id: 'gnews_commod',
+    name: 'Google News · oil, gold, war',
+    url: 'https://news.google.com/rss/search?q=oil+OR+gold+OR+bitcoin+OR+war+OR+tariffs+OR+sanctions&hl=en-US&gl=US&ceid=US:en',
+    lang: 'en',
+    kind: 'markets',
+  },
+  {
+    id: 'gnews_ar',
+    name: 'Google News · أسواق',
+    url: 'https://news.google.com/rss/search?q=%D8%A7%D9%84%D9%86%D9%81%D8%B7+OR+%D8%A7%D9%84%D8%B0%D9%87%D8%A8+OR+%D8%A8%D9%8A%D8%AA%D9%83%D9%88%D9%8A%D9%86+OR+%D8%AD%D8%B1%D8%A8&hl=ar&gl=AE&ceid=AE:ar',
+    lang: 'ar',
+    kind: 'markets',
+  },
 ];
 
 const UA = 'Mozilla/5.0 (compatible; NovaOS news reader)';
@@ -61,7 +73,12 @@ const tag = (block: string, name: string) => {
 export const headlineHash = (title: string) =>
   crypto
     .createHash('sha1')
-    .update(title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim())
+    .update(
+      title
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        .trim(),
+    )
     .digest('hex')
     .slice(0, 16);
 

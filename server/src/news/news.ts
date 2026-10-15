@@ -35,7 +35,10 @@ async function fetchPrices() {
   for (const a of want) {
     if (SYMBOLS[a].source !== 'yahoo') continue;
     try {
-      const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(SYMBOLS[a].symbol)}?range=1d&interval=5m`, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(10_000) });
+      const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(SYMBOLS[a].symbol)}?range=1d&interval=5m`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(10_000),
+      });
       if (!res.ok) continue;
       const j = (await res.json()) as { chart: { result?: { meta: { regularMarketPrice?: number } }[] } };
       const p = j.chart.result?.[0]?.meta.regularMarketPrice;
@@ -114,7 +117,17 @@ export async function scanNow(): Promise<{ headlines: number; fresh: number; eve
             .prepare('INSERT INTO news_events(item_hash, title, type, assets, direction, confidence, importance, horizon_days, why, at, day) VALUES(?,?,?,?,?,?,?,?,?,?,?)')
             .run(h.hash, h.title, x.event, JSON.stringify(x.assets), x.direction, x.confidence, x.importance, x.horizonDays, x.why, Date.now(), new Date().toISOString().slice(0, 10));
           events++;
-          const sig: EventSignal = { eventId: Number(r.lastInsertRowid), type: x.event, assets: x.assets, direction: x.direction, confidence: x.confidence, importance: x.importance, horizonDays: x.horizonDays, headline: h.title, why: x.why };
+          const sig: EventSignal = {
+            eventId: Number(r.lastInsertRowid),
+            type: x.event,
+            assets: x.assets,
+            direction: x.direction,
+            confidence: x.confidence,
+            importance: x.importance,
+            horizonDays: x.horizonDays,
+            headline: h.title,
+            why: x.why,
+          };
           const d = decide(account, playbook, sig, prices, rules);
           for (const asset of d.closeAssets)
             for (const p of account.positions.filter((p) => p.asset === asset)) {
@@ -125,10 +138,20 @@ export async function scanNow(): Promise<{ headlines: number; fresh: number; eve
           opened += d.open.length;
           for (const s of d.skipped) if (x.importance >= 0.5) account.skipped.unshift({ at: Date.now(), headline: h.title, asset: s.asset, why: s.why });
           for (const p of d.open) {
-            void postHook({ type: 'notice', text: `📰 News Trader bought ${p.asset} at ${p.entry} ($${p.margin} paper)\n${h.title.slice(0, 120)}\n${p.why}\nTarget +${Math.round(((p.target - p.entry) / p.entry) * 1000) / 10}% · stop −${rules.stopPct}%` });
+            void postHook({
+              type: 'notice',
+              text: `📰 News Trader bought ${p.asset} at ${p.entry} ($${p.margin} paper)\n${h.title.slice(0, 120)}\n${p.why}\nTarget +${Math.round(((p.target - p.entry) / p.entry) * 1000) / 10}% · stop −${rules.stopPct}%`,
+            });
             void notify('News Trader', `Bought ${p.asset}: ${h.title.slice(0, 80)}`, '/news');
           }
-          if (x.importance >= 0.85 && !d.open.length) void postHook({ type: 'notice', text: `📰 Big news (${x.event}): ${h.title.slice(0, 120)}\n${x.why}\nNo trade: ${d.skipped.map((s) => `${s.asset} ${s.why}`).join('; ').slice(0, 200)}` });
+          if (x.importance >= 0.85 && !d.open.length)
+            void postHook({
+              type: 'notice',
+              text: `📰 Big news (${x.event}): ${h.title.slice(0, 120)}\n${x.why}\nNo trade: ${d.skipped
+                .map((s) => `${s.asset} ${s.why}`)
+                .join('; ')
+                .slice(0, 200)}`,
+            });
         }
       }
       saveAccount(account);
@@ -145,7 +168,14 @@ export async function scanNow(): Promise<{ headlines: number; fresh: number; eve
 export function marketView(): Partial<Record<Asset, { score: number; n: number; drivers: string[] }>> {
   const db = getDb();
   const since = Date.now() - rules.sentimentHours * 3600_000;
-  const rows = db.prepare('SELECT title, assets, direction, confidence, importance, at FROM news_events WHERE at > ? ORDER BY at DESC').all(since) as { title: string; assets: string; direction: string; confidence: number; importance: number; at: number }[];
+  const rows = db.prepare('SELECT title, assets, direction, confidence, importance, at FROM news_events WHERE at > ? ORDER BY at DESC').all(since) as {
+    title: string;
+    assets: string;
+    direction: string;
+    confidence: number;
+    importance: number;
+    at: number;
+  }[];
   const out: Partial<Record<Asset, { score: number; n: number; drivers: { w: number; t: string }[] }>> = {};
   for (const r of rows) {
     const sign = r.direction === 'up' ? 1 : r.direction === 'down' ? -1 : 0;
@@ -162,7 +192,14 @@ export function marketView(): Partial<Record<Asset, { score: number; n: number; 
   }
   const res: Partial<Record<Asset, { score: number; n: number; drivers: string[] }>> = {};
   for (const [a, o] of Object.entries(out) as [Asset, { score: number; n: number; drivers: { w: number; t: string }[] }][])
-    res[a] = { score: Math.round(o.score * 100) / 100, n: o.n, drivers: o.drivers.sort((x, y) => Math.abs(y.w) - Math.abs(x.w)).slice(0, 3).map((x) => x.t) };
+    res[a] = {
+      score: Math.round(o.score * 100) / 100,
+      n: o.n,
+      drivers: o.drivers
+        .sort((x, y) => Math.abs(y.w) - Math.abs(x.w))
+        .slice(0, 3)
+        .map((x) => x.t),
+    };
   return res;
 }
 
@@ -176,9 +213,12 @@ function tradeTheMood() {
     }
   applyOpen(account, d.open, -1);
   for (const p of d.open) {
-    void postHook({ type: 'notice', text: `📰 News Trader bought ${p.asset} at ${p.entry} ($${p.margin} paper) on market mood
+    void postHook({
+      type: 'notice',
+      text: `📰 News Trader bought ${p.asset} at ${p.entry} ($${p.margin} paper) on market mood
 ${p.why}
-Target +${Math.round(((p.target - p.entry) / p.entry) * 1000) / 10}% · stop −${rules.stopPct}%` });
+Target +${Math.round(((p.target - p.entry) / p.entry) * 1000) / 10}% · stop −${rules.stopPct}%`,
+    });
     void notify('News Trader', `Bought ${p.asset} on market mood`, '/news');
   }
   if (d.open.length || d.closeAssets.length) saveAccount(account);
@@ -219,7 +259,10 @@ export function startNewsTrader(): () => void {
   }, 60_000);
   const t3 = setInterval(() => void recordOutcomes().catch(() => undefined), 6 * 3600_000);
   setTimeout(() => {
-    if (!playbook) void buildPlaybook().then((p) => (playbook = p)).catch((e) => (lastError = `playbook: ${(e as Error).message}`));
+    if (!playbook)
+      void buildPlaybook()
+        .then((p) => (playbook = p))
+        .catch((e) => (lastError = `playbook: ${(e as Error).message}`));
     void tickPrices().catch(() => undefined);
     void recordOutcomes().catch(() => undefined);
   }, 30_000);
@@ -254,7 +297,8 @@ export function stats() {
   const since = Date.now() - days * 86_400_000;
   const perDay = new Map<string, { headlines: number; events: number; trades: number }>();
   for (let i = days - 1; i >= 0; i--) perDay.set(new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10), { headlines: 0, events: 0, trades: 0 });
-  for (const r of db.prepare("SELECT date(seen_at / 1000, 'unixepoch') AS d, COUNT(*) AS n FROM news_items WHERE seen_at > ? GROUP BY d").all(since) as { d: string; n: number }[]) if (perDay.has(r.d)) perDay.get(r.d)!.headlines = r.n;
+  for (const r of db.prepare("SELECT date(seen_at / 1000, 'unixepoch') AS d, COUNT(*) AS n FROM news_items WHERE seen_at > ? GROUP BY d").all(since) as { d: string; n: number }[])
+    if (perDay.has(r.d)) perDay.get(r.d)!.headlines = r.n;
   for (const r of db.prepare('SELECT day AS d, COUNT(*) AS n FROM news_events WHERE at > ? GROUP BY day').all(since) as { d: string; n: number }[]) if (perDay.has(r.d)) perDay.get(r.d)!.events = r.n;
   for (const c of closed) {
     const d = new Date(c.openedAt).toISOString().slice(0, 10);
@@ -350,10 +394,13 @@ export async function newsRoutes(app: FastifyInstance) {
   });
 
   app.post<{ Params: { id: string } }>('/api/news/positions/:id/close', { preHandler: requireAuth }, async (req, reply) => {
-    const p = account.positions.find((x) => x.id === Number(req.params.id));
-    if (!p) return reply.code(404).send({ error: 'not_found' });
+    if (!account.positions.some((x) => x.id === Number(req.params.id))) return reply.code(404).send({ error: 'not_found' });
     await fetchPrices().catch(() => undefined);
+    // Re-find after the await: the minute loop may have closed it meanwhile (stop/target), which must not be booked twice.
+    const p = account.positions.find((x) => x.id === Number(req.params.id));
+    if (!p) return reply.code(409).send({ error: 'already_closed' });
     const c = close(account, p, prices[p.symbol] ?? p.entry, 'manual');
+    audit(req.session!.userId, 'news_manual_close', { id: p.id, asset: p.asset, pnl: c.pnl });
     saveAccount(account);
     snapshotEquity();
     return c;
