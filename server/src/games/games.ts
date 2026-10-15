@@ -113,7 +113,7 @@ function scanLibrary() {
     const hasCue = files.some((f) => /\.cue$/i.test(f.name));
     // A multi-disc game is a "<Game>.m3u" folder (ES-DE shows it as one game): count its .m3u only.
     const games = files.filter((f) => !(hasCue && /\.bin$/i.test(f.name) && s.id === 'psx') && !(/\.m3u\//i.test(f.name) && !/\.m3u$/i.test(f.name)));
-    const title = (g: string) => (/\/PS3_GAME$|(^|\/)eboot\.bin$/i.test(g) ? path.basename(path.dirname(g)).replace(/\.ps4$/i, '') : path.basename(g).replace(/\.[^.]+$/, ''));
+    const title = (g: string) => (/\/PS3_GAME$|(^|\/)eboot\.(bin|pbp)$/i.test(g) ? path.basename(path.dirname(g)).replace(/\.ps4$/i, '') : path.basename(g).replace(/\.[^.]+$/, ''));
     // What gets launched: the game folder for PS3 disc copies, the eboot.bin for PS4, else the file.
     const launchable = (g: string) => path.resolve(GAMES(), /\/PS3_GAME$/i.test(g) ? path.dirname(g) : g);
     for (const g of games) all.push({ system: s.id, systemName: s.name, name: title(g.name), rom: launchable(g.name) });
