@@ -149,7 +149,7 @@ export function startNewsTrader(): () => void {
   const t1 = setInterval(() => void tickPrices().catch((e) => (lastError = `prices: ${(e as Error).message}`)), 60_000);
   const t2 = setInterval(() => {
     const last = Number(kvGet('news.lastScan') ?? 0);
-    if (Date.now() - last >= SCAN_EVERY - 5000) void scanNow().catch((e) => (lastError = (e as Error).message));
+    if (Date.now() - last >= SCAN_EVERY - 5000 && !scanning) void scanNow().catch((e) => (lastError = (e as Error).message));
   }, 60_000);
   const t3 = setInterval(() => void recordOutcomes().catch(() => undefined), 6 * 3600_000);
   setTimeout(() => {
