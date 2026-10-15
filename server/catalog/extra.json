@@ -1578,7 +1578,7 @@
      }
     }
    },
-   "tips": "DNS on 192.168.1.20 and 100.64.0.5 (port 53). To use it: Tailscale admin → DNS → add nameserver 100.64.0.5, or set it as DNS in the router.",
+   "tips": "DNS on the server's LAN and Tailscale addresses (port 53). To use it: Tailscale admin → DNS → add the server's Tailscale IP as a nameserver, or set it as DNS in the router.",
    "source": {
     "repo": "IceWhaleTech/CasaOS-AppStore",
     "commit": "0909364b800950030e71ea82355a5969a1c08b39",
