@@ -41,7 +41,9 @@ const PROTO_VERSION = '2';
 const LABEL_MIN = 0.2;
 const LABEL_MARGIN = 0.01; // best must beat the runner-up by this much, else the photo stays unlabelled
 const DUP_MIN = 0.96;
-const PERSON_MIN = 0.45; // cosine between ArcFace vectors of the same person (this model: ~0.5+)
+const PERSON_MIN = 0.5; // cosine between ArcFace vectors of the same person (this model: ~0.55+; 0.45 merged strangers from faded scans)
+/** Bump when PERSON_MIN changes: unnamed people are regrouped on the next scan (named ones are kept). */
+const CLUSTER_VERSION = '2';
 const MAX_VIDEOS_PER_RUN = 150;
 
 // ---- Sidecar -------------------------------------------------------------------------------------
@@ -461,7 +463,17 @@ registerTask('vision.index', async (ctx) => {
       if ((i + 1) % 50 === 0 || i + 1 === faceTodo.length) ctx.progress(`faces ${i + 1}/${faceTodo.length}`);
     }
     ctx.log(`Faces: ${faceTodo.length} photos looked at, ${found} faces found`);
+    if (kvGet('vision.clusterVersion') !== CLUSTER_VERSION) {
+      db.exec('BEGIN');
+      db.prepare('UPDATE faces SET person_id = NULL WHERE person_id IN (SELECT id FROM people WHERE name IS NULL)').run();
+      db.prepare('DELETE FROM people WHERE name IS NULL').run();
+      db.exec('COMMIT');
+      kvSet('vision.clusterVersion', CLUSTER_VERSION);
+      ctx.log('People regrouped with the new threshold');
+    }
     clusterPeople();
+    // Cover crops ahead of time, so the People grid does not wait on ffmpeg.
+    for (const p of people()) await faceCrop(p.coverFace).catch(() => null);
 
     // 3. Video frames, a bounded number of videos per run.
     const vHave = new Set(
@@ -696,6 +708,20 @@ export async function personPhotos(id: number) {
     .sort((a, b) => b.taken - a.taken);
 }
 
+/** At most a few ffmpeg crops at once: the People grid asks for dozens in one go (the unit has TasksMax=128). */
+let cropSlots = 4;
+const cropWaiters: (() => void)[] = [];
+async function withCropSlot<T>(fn: () => Promise<T>): Promise<T> {
+  if (cropSlots <= 0) await new Promise<void>((r) => cropWaiters.push(r));
+  cropSlots--;
+  try {
+    return await fn();
+  } finally {
+    cropSlots++;
+    cropWaiters.shift()?.();
+  }
+}
+
 /** A 160px crop of one face, made once with ffmpeg and cached. */
 async function faceCrop(id: number): Promise<string | null> {
   const row = getDb().prepare('SELECT path, box FROM faces WHERE id = ?').get(id) as { path: string; box: string } | undefined;
@@ -709,11 +735,14 @@ async function faceCrop(id: number): Promise<string | null> {
   const h = y2 - y1;
   const pad = Math.round(Math.max(w, h) * 0.35);
   const side = Math.round(Math.max(w, h) + 2 * pad);
-  const cx = Math.round((x1 + x2) / 2 - side / 2);
-  const cy = Math.round((y1 + y2) / 2 - side / 2);
-  await execFileP('ffmpeg', ['-v', 'error', '-y', '-i', abs(row.path), '-vf', `crop=${side}:${side}:${Math.max(0, cx)}:${Math.max(0, cy)},scale=160:160`, '-frames:v', '1', '-q:v', '4', out], {
-    timeout: 30_000,
-  });
+  const cx = Math.max(0, Math.round((x1 + x2) / 2 - side / 2));
+  const cy = Math.max(0, Math.round((y1 + y2) / 2 - side / 2));
+  // Boxes come from the EXIF-rotated image (the sidecar applies exif_transpose); ffmpeg autorotates too.
+  // The crop is clamped to the frame so faces at an edge still work.
+  const vf = `crop=min(${side}\\,iw-${cx}):min(${side}\\,ih-${cy}):${cx}:${cy},scale=160:160`;
+  const tmp = `${out}.${process.pid}.tmp.jpg`;
+  await withCropSlot(() => execFileP('ffmpeg', ['-v', 'error', '-y', '-i', abs(row.path), '-vf', vf, '-frames:v', '1', '-q:v', '4', tmp], { timeout: 60_000 }));
+  fs.renameSync(tmp, out);
   return out;
 }
 
