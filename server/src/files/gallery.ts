@@ -143,8 +143,11 @@ export interface MediaItem {
   taken: number;
 }
 
+/** Game artwork (covers, screenshots, marquees under Games/) and backup folders are not photos. */
+const NOT_GALLERY = /(^|\/)(Games|Backups|\.trash|\.thumbs|thumbnails)\//i;
+
 async function media(): Promise<MediaItem[]> {
-  const files = (await fileIndex()).files.filter((f) => f.cat === 'videos' || (f.cat === 'images' && f.size >= MIN_IMAGE_BYTES));
+  const files = (await fileIndex()).files.filter((f) => !NOT_GALLERY.test(f.path) && (f.cat === 'videos' || (f.cat === 'images' && f.size >= MIN_IMAGE_BYTES)));
   fillExifCache(files);
   const taken = new Map((getDb().prepare('SELECT path, taken FROM media_meta WHERE taken IS NOT NULL').all() as { path: string; taken: number }[]).map((r) => [r.path, r.taken]));
   const list = files
