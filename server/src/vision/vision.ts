@@ -23,21 +23,44 @@ const DIM = 512;
 const BATCH = 16;
 /** Zero-shot categories: the English prompt the text tower sees, and the label stored. */
 const CATEGORIES: { label: string; prompts: string[] }[] = [
-  { label: 'people', prompts: ['a photo of people', '人的照片', '一个人的自拍或合影'] },
-  { label: 'document', prompts: ['a scanned document or paper form', '扫描的文件或表格', '一张纸质文档'] },
-  { label: 'screenshot', prompts: ['a screenshot of a phone or computer screen', '手机或电脑屏幕截图', '软件界面截图'] },
-  { label: 'receipt', prompts: ['a receipt or invoice', '收据或发票', '购物小票'] },
-  { label: 'id', prompts: ['an identity card or passport', '身份证或护照', '证件照片'] },
-  { label: 'car', prompts: ['a car or truck', '汽车或卡车', '一辆车的照片'] },
-  { label: 'building', prompts: ['a building or construction site', '建筑物或建筑工地', '房子和楼房'] },
-  { label: 'nature', prompts: ['a landscape, sea, sky or plants', '风景、大海、天空或植物', '自然风光'] },
-  { label: 'food', prompts: ['food or a meal', '食物或一顿饭', '美食照片'] },
-  { label: 'pet', prompts: ['a cat, dog or animal', '猫、狗或动物', '宠物照片'] },
-  { label: 'text', prompts: ['a page of text or a chart', '一页文字或图表', '表格和数据'] },
-  { label: 'logo', prompts: ['a logo or graphic design', '标志或平面设计', '图标和插画'] },
+  { label: 'people', prompts: ['a photo of people', '人的照片', '合影'] },
+  { label: 'selfies', prompts: ['a selfie', '自拍', '一个人的自拍', '镜子自拍'] },
+  { label: 'baby', prompts: ['a baby or toddler', '宝宝', '婴儿'] },
+  { label: 'wedding', prompts: ['a wedding', '婚礼现场', '婚纱摄影', '婚宴'] },
+  { label: 'parties', prompts: ['a party or gathering', '生日派对', '朋友聚会', '家庭聚会'] },
+  { label: 'performances', prompts: ['a concert or stage performance', '音乐会', '话剧表演', '舞蹈表演', '演唱会'] },
+  { label: 'sports', prompts: ['sports or a gym', '运动场', '篮球运动', '足球运动', '健身房', '跑步运动', '游泳运动'] },
+  { label: 'food', prompts: ['food or a meal', '美食', '家常菜', '西餐', '烧烤', '火锅'] },
+  { label: 'cats', prompts: ['a cat', '猫', '小猫', '猫咪玩耍', '猫咪睡觉'] },
+  { label: 'dogs', prompts: ['a dog', '狗', '小狗', '狗狗奔跑', '狗狗玩耍'] },
+  { label: 'birds', prompts: ['a bird', '鸟', '小鸟', '飞翔的鸟', '鸟在树上'] },
+  { label: 'animals', prompts: ['a wild or farm animal', '老虎', '狮子', '大象', '猴子', '熊猫', '长颈鹿', '马', '牛羊', '鸡鸭', '兔子'] },
+  { label: 'underwater', prompts: ['underwater, diving or coral', '海底世界', '潜水', '珊瑚礁', '水下摄影'] },
+  { label: 'sky', prompts: ['the sky, sunrise or sunset', '蓝天', '多云天空', '月亮天空', '星星天空', '日出天空', '日落天空'] },
+  { label: 'night_views', prompts: ['a city at night or fireworks', '城市夜景', '夜晚建筑', '烟花', '星空'] },
+  { label: 'snow', prompts: ['snow or skiing', '雪地', '下雪天', '雪山', '滑雪'] },
+  { label: 'mountains', prompts: ['mountains or hiking', '雪山', '青山', '登山', '山脉'] },
+  { label: 'beaches', prompts: ['a beach', '沙滩', '海滩'] },
+  { label: 'deserts', prompts: ['a desert or dunes', '沙漠景观', '沙丘', '干旱沙漠', '沙漠中的骆驼'] },
+  { label: 'forests', prompts: ['a forest or woods', '茂密森林', '森林公园', '原始森林', '森林小径'] },
+  { label: 'plants', prompts: ['flowers or plants', '鲜花', '绿色植物', '盆栽植物', '树林'] },
+  { label: 'architecture', prompts: ['a building or construction site', '现代建筑', '古老建筑', '住宅建筑', '建筑工地'] },
+  { label: 'bridges', prompts: ['a bridge', '石桥', '现代桥梁', '木桥', '拱桥'] },
+  { label: 'indoors', prompts: ['a room: living room, bedroom, kitchen or office', '客厅', '卧室', '厨房', '办公室'] },
+  { label: 'marketplaces', prompts: ['a market or bazaar', '农贸市场', '夜市', '跳蚤市场', '传统市场'] },
+  { label: 'shopping_mall', prompts: ['a shopping mall or supermarket', '大型商场', '超市', '百货商店', '商业中心'] },
+  { label: 'amusement_park', prompts: ['an amusement park', '游乐园', '游乐场'] },
+  { label: 'vehicles', prompts: ['a car, bus, bicycle, train or airplane', '汽车', '公交车', '自行车', '火车', '飞机'] },
+  { label: 'documents', prompts: ['a scanned document, contract or handwritten note', '文件截图', '打印文稿', '合同文件', '手写笔记'] },
+  { label: 'certificates', prompts: ['an identity card, passport or driving licence', '身份证', '护照', '驾驶证', '学生证'] },
+  { label: 'receipts', prompts: ['a receipt, invoice or ticket', '购物小票', '发票', '车票', '门票'] },
+  { label: 'screenshots', prompts: ['a screenshot of a phone, computer or chat', '手机截图', '电脑截图', '聊天截图', '网页截图'] },
+  { label: 'cartoons', prompts: ['a cartoon or anime drawing', '动漫角色', '卡通图片', '手绘卡通'] },
+  { label: 'text', prompts: ['a page of text, a table or a chart', '一页文字', '表格和数据', '图表'] },
+  { label: 'logo', prompts: ['a logo or graphic design', '标志', '平面设计', '图标和插画'] },
 ];
 /** Bump when CATEGORIES change: stored labels are recomputed from the kept vectors on the next scan. */
-const PROTO_VERSION = '2';
+const PROTO_VERSION = '3';
 const LABEL_MIN = 0.2;
 const LABEL_MARGIN = 0.01; // best must beat the runner-up by this much, else the photo stays unlabelled
 const DUP_MIN = 0.96;
@@ -192,7 +215,9 @@ let protos: { label: string; vec: Float32Array }[] | null = null;
 async function prototypes() {
   if (protos) return protos;
   const texts = CATEGORIES.flatMap((c) => c.prompts);
-  const r = await call<{ vectors: number[][] }>('/embed/texts', { texts });
+  // The sidecar takes at most 64 texts per call.
+  const r = { vectors: [] as number[][] };
+  for (let i = 0; i < texts.length; i += 64) r.vectors.push(...(await call<{ vectors: number[][] }>('/embed/texts', { texts: texts.slice(i, i + 64) })).vectors);
   let k = 0;
   protos = CATEGORIES.map((c) => {
     const v = new Float32Array(DIM);
