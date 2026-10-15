@@ -133,6 +133,11 @@ export const config = {
   ytDlpBrowserUrl: str('MANAR_YTDLP_BROWSER_URL', 'ytDlpBrowserUrl', ''),
   ytDlpBrowserContainer: str('MANAR_YTDLP_BROWSER_CONTAINER', 'ytDlpBrowserContainer', ''),
 
+  // ---- Vision (photo search, people): a Python sidecar with OpenVINO models ----
+  /** Folder with server.py, model/ and venv/ (see docs/vision.md). Missing = feature off. */
+  visionDir: expand(str('MANAR_VISION_DIR', 'visionDir', path.join(appDataRoot, 'vision'))),
+  visionPort: num('MANAR_VISION_PORT', 'visionPort', 7479),
+
   // ---- Voice assistant persona (optional; nothing personal ships in the code) ----
   /** How the voice assistant addresses the owner. Empty = "the owner". */
   ownerName: str('MANAR_OWNER_NAME', 'ownerName', ''),

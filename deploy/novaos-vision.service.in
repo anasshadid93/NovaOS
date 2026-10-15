@@ -1,0 +1,32 @@
+[Unit]
+Description=NovaOS vision sidecar (photo search, people) — local models on the CPU
+After=network.target
+PartOf=manar.service
+
+[Service]
+Type=simple
+User=@USER@
+Group=@GROUP@
+WorkingDirectory=@DATA_ROOT@/apps/vision
+Environment=VISION_PORT=7479
+Environment=VISION_THREADS=4
+ExecStart=@DATA_ROOT@/apps/vision/venv/bin/python @DATA_ROOT@/apps/vision/server.py
+Restart=on-failure
+RestartSec=5
+
+# Background work: it must never slow the rest of the machine.
+Nice=15
+CPUWeight=20
+MemoryMax=3G
+TasksMax=64
+
+PrivateTmp=yes
+ProtectSystem=full
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+NoNewPrivileges=yes
+LockPersonality=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

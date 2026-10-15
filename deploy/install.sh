@@ -123,6 +123,15 @@ fi
 
 systemctl enable --now manar.service
 
+# 4b. vision sidecar (optional): only when its models and venv are in place (see docs/vision.md).
+if [[ -f $DATA_ROOT/apps/vision/server.py && -x $DATA_ROOT/apps/vision/venv/bin/python ]]; then
+  backup /etc/systemd/system/novaos-vision.service
+  fill "$DEPLOY/novaos-vision.service.in" >/etc/systemd/system/novaos-vision.service
+  chmod 0644 /etc/systemd/system/novaos-vision.service
+  systemctl daemon-reload
+  systemctl enable --now novaos-vision.service
+fi
+
 # 5. tailscale serve (adds one port; existing serve entries are untouched)
 URL="https://$(hostname):$TS_PORT"
 if [[ $TAILSCALE -eq 1 ]] && command -v tailscale >/dev/null && tailscale status >/dev/null 2>&1; then

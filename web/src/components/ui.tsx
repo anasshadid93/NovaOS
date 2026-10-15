@@ -33,7 +33,7 @@ export function IconBadge({ icon: I, color, size = 'md' }: { icon: Icon; color: 
  * Sticky page header. `children` (tabs, search, filters) render inside the same
  * sticky block, so they always sit right under the title whatever the safe-area height.
  */
-export function PageHeader({ title, back, actions, children }: { title: string; back?: string | boolean; actions?: ReactNode; children?: ReactNode }) {
+export function PageHeader({ title, back, actions, children }: { title: string; back?: string | boolean | (() => void); actions?: ReactNode; children?: ReactNode }) {
   const { t } = useI18n();
   const [location, navigate] = useLocation();
   const win = useWindowCtx();
@@ -45,7 +45,7 @@ export function PageHeader({ title, back, actions, children }: { title: string; 
         {back && (
           <button
             type="button"
-            onClick={() => (win ? win.back() : typeof back === 'string' ? navigate(back) : history.back())}
+            onClick={() => (typeof back === 'function' ? back() : win ? win.back() : typeof back === 'string' ? navigate(back) : history.back())}
             className="inline-flex size-10 items-center justify-center rounded-full text-heading hover:bg-primary-soft"
             aria-label={t('common.back')}
           >
@@ -186,7 +186,9 @@ export function Button({
   variant = 'primary',
   className = '',
   ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'ghost' }) {
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+}) {
   const styles = {
     primary: 'bg-primary text-white active:bg-primary-strong',
     secondary: 'bg-primary-soft text-primary-ink',
@@ -194,11 +196,7 @@ export function Button({
     ghost: 'text-primary-ink',
   }[variant];
   return (
-    <button
-      type="button"
-      {...rest}
-      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-4 font-medium transition disabled:opacity-50 ${styles} ${className}`}
-    >
+    <button type="button" {...rest} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-4 font-medium transition disabled:opacity-50 ${styles} ${className}`}>
       {children}
     </button>
   );

@@ -350,6 +350,38 @@ const MIGRATIONS: string[] = [
      moves TEXT NOT NULL
    );`,
   `CREATE TABLE news_equity (at INTEGER PRIMARY KEY, equity REAL NOT NULL, balance REAL NOT NULL);`,
+  // Vision: CLIP vectors per photo (and per video frame), faces and the people they belong to.
+  `CREATE TABLE media_vec (
+     path TEXT PRIMARY KEY,
+     mtime REAL NOT NULL,
+     vec BLOB NOT NULL,
+     label TEXT,
+     label_score REAL
+   );
+   CREATE TABLE video_frames (
+     path TEXT NOT NULL,
+     t REAL NOT NULL,
+     vec BLOB NOT NULL,
+     PRIMARY KEY(path, t)
+   );
+   CREATE TABLE faces (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     path TEXT NOT NULL,
+     box TEXT NOT NULL,
+     score REAL NOT NULL,
+     vec BLOB NOT NULL,
+     person_id INTEGER
+   );
+   CREATE INDEX faces_path ON faces(path);
+   CREATE INDEX faces_person ON faces(person_id);
+   CREATE TABLE faces_done (path TEXT PRIMARY KEY, mtime REAL NOT NULL, n INTEGER NOT NULL);
+   CREATE TABLE people (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     name TEXT,
+     cover_face INTEGER,
+     hidden INTEGER NOT NULL DEFAULT 0,
+     created_at INTEGER NOT NULL
+   );`,
 ];
 
 let db: DatabaseSync | null = null;

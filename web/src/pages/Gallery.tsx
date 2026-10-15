@@ -1,6 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearch } from 'wouter';
-import { Add24Regular, Checkmark24Regular, ChevronDown16Regular, FolderOpen24Regular, HardDrive24Filled, Home24Regular, Play24Filled, Storage24Regular, UsbStick24Filled } from '@fluentui/react-icons';
+import {
+  Add24Regular,
+  ArrowClockwise24Regular,
+  Checkmark24Regular,
+  ChevronDown16Regular,
+  CopySelect24Regular,
+  Dismiss24Regular,
+  Edit24Regular,
+  FolderOpen24Regular,
+  HardDrive24Filled,
+  Home24Regular,
+  Play24Filled,
+  Search24Regular,
+  Storage24Regular,
+  UsbStick24Filled,
+} from '@fluentui/react-icons';
 import { ApiError, api } from '../lib/api';
 import { Dialog } from '../components/Dialog';
 import { thumbUrl, type Entry } from '../lib/fm';
@@ -30,7 +45,30 @@ interface Drive {
   count: number | null;
 }
 const DRIVE_KEY = 'manar.galleryDrive';
-type Tab = 'all' | 'photos' | 'videos' | 'albums';
+type Tab = 'all' | 'photos' | 'videos' | 'albums' | 'people' | 'smart';
+/** A result list that replaces the normal timeline: a search, a person, a category, duplicates or "similar". */
+type View = { kind: 'search'; q: string } | { kind: 'person'; id: number; name: string | null } | { kind: 'category'; label: string } | { kind: 'dups' } | { kind: 'similar'; path: string };
+interface Person {
+  id: number;
+  name: string | null;
+  coverFace: number;
+  photos: number;
+}
+interface Category {
+  label: string;
+  n: number;
+  cover: Media | null;
+}
+interface VisionStatus {
+  installed: boolean;
+  ready: boolean;
+  indexing: boolean;
+  progress: { phase: string; done: number; total: number } | null;
+  photos: number;
+  people: number;
+  videos: number;
+}
+const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const PAGE = 240;
 
 const toEntry = (m: Media): Entry => ({
@@ -43,10 +81,11 @@ const toEntry = (m: Media): Entry => ({
 });
 const albumName = (p: string, root: string) => (p === '.' || p === '' ? root : p.split('/').pop()!.replace(/_/g, ' '));
 
-function Thumb({ m, onOpen }: { m: Media; onOpen: () => void }) {
+function Thumb({ m, onOpen, caption }: { m: Media; onOpen: () => void; caption?: string }) {
   return (
     <button type="button" onClick={onOpen} className="relative aspect-square overflow-hidden bg-line active:opacity-80">
       <img src={thumbUrl(m.path, m.mtime)} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
+      {caption && <span className="absolute start-1 bottom-1 rounded bg-black/55 px-1 text-[10px] text-white tabular-nums">{caption}</span>}
       {m.cat === 'videos' && (
         <span className="absolute end-1 bottom-1 inline-flex size-6 items-center justify-center rounded-full bg-black/55 text-white">
           <Play24Filled className="size-3.5" aria-hidden />
@@ -71,6 +110,32 @@ export function Gallery() {
   const [drives, setDrives] = useState<Drive[] | null>(null);
   const [picker, setPicker] = useState(false);
   const [mounting, setMounting] = useState<string | null>(null);
+  const [vision, setVision] = useState<VisionStatus | null>(null);
+  const [view, setView] = useState<View | null>(null);
+  const [q, setQ] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [usedQuery, setUsedQuery] = useState<string | null>(null);
+  const [videoHits, setVideoHits] = useState<(Media & { t: number })[]>([]);
+  const [people, setPeople] = useState<Person[] | null>(null);
+  const [cats, setCats] = useState<Category[] | null>(null);
+  const [dupGroups, setDupGroups] = useState<{ items: Media[] }[] | null>(null);
+  useEffect(() => {
+    api<VisionStatus>('/api/vision/status')
+      .then(setVision)
+      .catch(() => setVision(null));
+  }, []);
+  // While a scan runs, refresh its progress.
+  useEffect(() => {
+    if (!vision?.indexing || tab !== 'smart') return;
+    const id = setInterval(
+      () =>
+        api<VisionStatus>('/api/vision/status')
+          .then(setVision)
+          .catch(() => undefined),
+      5000,
+    );
+    return () => clearInterval(id);
+  }, [vision?.indexing, tab]);
   const setDrive = (id: string) => {
     localStorage.setItem(DRIVE_KEY, id);
     setDriveState(id);
@@ -107,7 +172,65 @@ export function Gallery() {
     [tab, album, drive],
   );
 
+  const loadView = useCallback(
+    async (v: View) => {
+      setVideoHits([]);
+      setUsedQuery(null);
+      setDupGroups(null);
+      if (v.kind === 'search') {
+        setSearching(true);
+        try {
+          const r = await api<{
+            used: string;
+            photos: Media[];
+            videos: (Media & { t: number })[];
+          }>(`/api/gallery/search?q=${encodeURIComponent(v.q)}`);
+          setItems(r.photos);
+          setTotal(r.photos.length);
+          setVideoHits(r.videos);
+          if (r.used.trim().toLowerCase() !== v.q.trim().toLowerCase()) setUsedQuery(r.used);
+        } finally {
+          setSearching(false);
+        }
+        return;
+      }
+      if (v.kind === 'dups') {
+        const g = await api<{ items: Media[] }[]>('/api/gallery/duplicates');
+        setDupGroups(g);
+        const flat = g.flatMap((x) => x.items);
+        setItems(flat);
+        setTotal(flat.length);
+        return;
+      }
+      const url =
+        v.kind === 'person'
+          ? `/api/gallery/people/${v.id}`
+          : v.kind === 'category'
+            ? `/api/gallery/categories?label=${encodeURIComponent(v.label)}`
+            : `/api/gallery/similar?path=${encodeURIComponent(v.path)}`;
+      try {
+        const r = await api<Media[]>(url);
+        setItems(r);
+        setTotal(r.length);
+      } catch (e) {
+        if (v.kind === 'similar' && e instanceof ApiError && e.status === 404) setStatus(t('gallery.notIndexed'));
+        setItems([]);
+        setTotal(0);
+      }
+    },
+    [t],
+  );
+
   const reload = useCallback(async () => {
+    if (view) return loadView(view);
+    if (tab === 'people') {
+      setPeople(await api<Person[]>('/api/gallery/people'));
+      return;
+    }
+    if (tab === 'smart') {
+      setCats(await api<Category[]>('/api/gallery/categories'));
+      return;
+    }
     if (tab === 'albums') {
       setAlbums(await api<Album[]>(`/api/gallery/albums${drive !== 'all' ? `?drive=${encodeURIComponent(drive)}` : ''}`));
       return;
@@ -116,17 +239,44 @@ export function Gallery() {
     setItems(r.items);
     setTotal(r.total);
     if (album === null && tab === 'all') setCounts(r.counts);
-  }, [tab, album, drive, query]);
+  }, [tab, album, drive, query, view, loadView]);
 
   useEffect(() => {
     setItems(null);
     void reload();
   }, [reload]);
 
+  const openView = (v: View) => {
+    setStatus('');
+    setPreview(null);
+    setView(v);
+  };
+  const closeView = () => {
+    setView(null);
+    setQ('');
+  };
+  const submitSearch = () => {
+    const s = q.trim();
+    if (s) openView({ kind: 'search', q: s });
+  };
+  const renamePerson = async (p: Person) => {
+    const name = window.prompt(t('gallery.people.rename'), p.name ?? '');
+    if (name === null) return;
+    await api(`/api/gallery/people/${p.id}`, { body: { name } });
+    if (view?.kind === 'person') setView({ ...view, name: name || null });
+    setPeople((cur) => (cur ?? []).map((x) => (x.id === p.id ? { ...x, name: name || null } : x)));
+  };
+  const rescan = async () => {
+    await api('/api/vision/index', { body: {} }).catch(() => undefined);
+    api<VisionStatus>('/api/vision/status')
+      .then(setVision)
+      .catch(() => undefined);
+  };
+
   // Infinite scroll
   useEffect(() => {
     const el = sentinel.current;
-    if (!el || tab === 'albums') return;
+    if (!el || tab === 'albums' || view) return;
     const io = new IntersectionObserver(async ([e]) => {
       if (!e.isIntersecting || loading.current || !items || items.length >= total) return;
       loading.current = true;
@@ -139,7 +289,7 @@ export function Gallery() {
     });
     io.observe(el);
     return () => io.disconnect();
-  }, [items, total, query, tab]);
+  }, [items, total, query, tab, view]);
 
   // Group by month of the date taken
   const groups = useMemo(() => {
@@ -202,27 +352,57 @@ export function Gallery() {
   const driveLabel = (d: Drive) => (d.id === 'internal' ? t('vol.internal') : d.name);
   const current = drives?.find((d) => d.id === drive);
 
-  const tabs: Tab[] = ['all', 'photos', 'videos', 'albums'];
-  const title = album !== null ? albumName(album, t('fm.root')) : t('gallery.title');
+  const tabs: Tab[] = vision?.installed ? ['all', 'photos', 'videos', 'albums', 'people', 'smart'] : ['all', 'photos', 'videos', 'albums'];
+  const viewTitle = !view
+    ? null
+    : view.kind === 'search'
+      ? view.q
+      : view.kind === 'person'
+        ? (view.name ?? t('gallery.people.unnamed'))
+        : view.kind === 'category'
+          ? t(`gallery.cat.${view.label}` as MessageKey)
+          : view.kind === 'dups'
+            ? t('gallery.dups')
+            : t('gallery.similarTitle');
+  const title = viewTitle ?? (album !== null ? albumName(album, t('fm.root')) : t('gallery.title'));
+  const catLabel = (l: string) => t(`gallery.cat.${l}` as MessageKey);
 
   return (
     <>
       <PageHeader
         title={title}
-        back={album !== null ? '/gallery?tab=albums' : '/'}
+        back={view ? closeView : album !== null ? '/gallery?tab=albums' : '/'}
         actions={
-          <button
-            type="button"
-            onClick={() => fileInput.current?.click()}
-            aria-label={t('gallery.add')}
-            className="inline-flex size-10 items-center justify-center rounded-full text-heading active:bg-primary-soft"
-          >
-            <Add24Regular aria-hidden />
-          </button>
+          view?.kind === 'person' ? (
+            <button
+              type="button"
+              onClick={() =>
+                void renamePerson({
+                  id: view.id,
+                  name: view.name,
+                  coverFace: 0,
+                  photos: 0,
+                })
+              }
+              aria-label={t('gallery.people.rename')}
+              className="inline-flex size-10 items-center justify-center rounded-full text-heading active:bg-primary-soft"
+            >
+              <Edit24Regular aria-hidden />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInput.current?.click()}
+              aria-label={t('gallery.add')}
+              className="inline-flex size-10 items-center justify-center rounded-full text-heading active:bg-primary-soft"
+            >
+              <Add24Regular aria-hidden />
+            </button>
+          )
         }
       >
-        {album === null && (
-          <div className="grid grid-cols-4 gap-1 rounded-xl bg-primary-soft p-1" role="tablist">
+        {album === null && !view && (
+          <div className={`flex gap-1 overflow-x-auto rounded-xl bg-primary-soft p-1 [scrollbar-width:none] ${tabs.length > 4 ? '' : 'grid grid-cols-4'}`} role="tablist">
             {tabs.map((x) => (
               <button
                 key={x}
@@ -230,7 +410,7 @@ export function Gallery() {
                 role="tab"
                 aria-selected={tab === x}
                 onClick={() => setTab(x)}
-                className={`min-h-9 rounded-lg text-sm ${tab === x ? 'bg-surface font-medium text-heading shadow-card' : 'text-muted'}`}
+                className={`min-h-9 shrink-0 rounded-lg px-3 text-sm ${tab === x ? 'bg-surface font-medium text-heading shadow-card' : 'text-muted'}`}
               >
                 {t(`gallery.tab.${x}` as MessageKey)}
               </button>
@@ -241,7 +421,33 @@ export function Gallery() {
       <input ref={fileInput} type="file" accept="image/*,video/*" multiple hidden onChange={(e) => void upload(e.target.files)} />
 
       <main className="safe-bottom mx-auto max-w-md">
-        {album === null && (
+        {album === null && vision?.installed && tab !== 'people' && tab !== 'albums' && (
+          <form
+            className="mb-2 flex items-center gap-2 px-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              submitSearch();
+            }}
+          >
+            <label className="flex min-h-10 flex-1 items-center gap-2 rounded-full bg-surface px-3 shadow-card">
+              <Search24Regular className="size-5 shrink-0 text-muted" aria-hidden />
+              <input
+                type="search"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={t('gallery.search')}
+                enterKeyHint="search"
+                className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-muted"
+              />
+              {(q || view?.kind === 'search') && (
+                <button type="button" onClick={closeView} aria-label={t('common.close')} className="text-muted">
+                  <Dismiss24Regular className="size-4" aria-hidden />
+                </button>
+              )}
+            </label>
+          </form>
+        )}
+        {album === null && !view && tab !== 'people' && tab !== 'smart' && (
           <div className="mb-2 px-3">
             <button
               type="button"
@@ -262,8 +468,93 @@ export function Gallery() {
             {status}
           </p>
         )}
+        {searching && <p className="mx-3 mb-2 text-sm text-muted">{t('gallery.searching')}</p>}
+        {usedQuery && <p className="mx-3 mb-2 text-xs text-muted">{t('gallery.usedQuery', { q: usedQuery })}</p>}
 
-        {tab === 'albums' && album === null ? (
+        {!view && tab === 'people' && album === null ? (
+          <div className="grid grid-cols-3 gap-3 px-3 @2xl:grid-cols-5 @5xl:grid-cols-8">
+            {people?.length === 0 && <p className="col-span-3 px-4 py-16 text-center text-sm text-muted">{t('gallery.people.empty')}</p>}
+            {people?.map((p) => (
+              <button key={p.id} type="button" onClick={() => openView({ kind: 'person', id: p.id, name: p.name })} className="flex flex-col items-center gap-1.5 active:scale-[0.98]">
+                <img src={`/api/gallery/face/${p.coverFace}`} alt="" loading="lazy" className="size-20 rounded-full bg-line object-cover shadow-card" />
+                <span className={`block w-full truncate text-center text-sm ${p.name ? 'font-medium text-ink' : 'text-muted'}`}>
+                  <bdi>{p.name ?? t('gallery.people.unnamed')}</bdi>
+                </span>
+                <span className="-mt-1 block text-xs text-muted">{t('gallery.people.photos', { n: p.photos })}</span>
+              </button>
+            ))}
+          </div>
+        ) : !view && tab === 'smart' && album === null ? (
+          <div className="px-3">
+            <div className="mb-3 flex items-center justify-between gap-2 rounded-2xl bg-surface px-3 py-2 text-xs text-muted shadow-card">
+              <span>
+                {!vision?.ready
+                  ? t('vision.status.starting')
+                  : vision.indexing && vision.progress
+                    ? t('vision.status.indexing', {
+                        phase: vision.progress.phase,
+                        done: vision.progress.done,
+                        total: vision.progress.total,
+                      })
+                    : t('vision.status.idle', {
+                        photos: vision.photos,
+                        people: vision.people,
+                        videos: vision.videos,
+                      })}
+              </span>
+              <button
+                type="button"
+                onClick={() => void rescan()}
+                disabled={!vision?.ready || vision.indexing}
+                aria-label={t('vision.rescan')}
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-primary-ink active:bg-primary-soft disabled:opacity-40"
+              >
+                <ArrowClockwise24Regular className={`size-5 ${vision?.indexing ? 'animate-spin' : ''}`} aria-hidden />
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => openView({ kind: 'dups' })}
+              className="mb-3 flex min-h-12 w-full items-center gap-3 rounded-2xl bg-surface px-3 text-start shadow-card active:bg-primary-soft"
+            >
+              <CopySelect24Regular className="shrink-0 text-primary-ink" aria-hidden />
+              <span className="flex-1 text-sm font-medium text-ink">{t('gallery.dups')}</span>
+            </button>
+            <h2 className="mb-2 px-1 text-sm font-semibold text-heading">{t('gallery.cat.title')}</h2>
+            <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-4 @5xl:grid-cols-6">
+              {cats?.length === 0 && <p className="col-span-2 py-10 text-center text-sm text-muted">{t('gallery.empty')}</p>}
+              {cats?.map((c) => (
+                <button key={c.label} type="button" onClick={() => openView({ kind: 'category', label: c.label })} className="block text-start active:scale-[0.99]">
+                  <span className="block aspect-[4/3] overflow-hidden rounded-2xl bg-line shadow-card">
+                    {c.cover && <img src={thumbUrl(c.cover.path, c.cover.mtime)} alt="" loading="lazy" className="size-full object-cover" />}
+                  </span>
+                  <span className="mt-1.5 block truncate px-1 text-sm font-medium text-ink">{catLabel(c.label)}</span>
+                  <span className="block px-1 text-xs text-muted">{t('gallery.count', { n: c.n })}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : view?.kind === 'dups' && dupGroups ? (
+          <div className="px-3">
+            {dupGroups.length === 0 ? (
+              <p className="py-16 text-center text-sm text-muted">{t('gallery.dups.none')}</p>
+            ) : (
+              <p className="pb-2 text-xs text-muted">{t('gallery.dups.groups', { n: dupGroups.length })}</p>
+            )}
+            {dupGroups.map((g, gi) => {
+              const start = dupGroups.slice(0, gi).reduce((n, x) => n + x.items.length, 0);
+              return (
+                <div key={g.items[0].path} className="mb-2 flex gap-0.5 overflow-x-auto rounded-xl bg-surface p-1 shadow-card">
+                  {g.items.map((m, i) => (
+                    <div key={m.path} className="w-24 shrink-0">
+                      <Thumb m={m} onOpen={() => setPreview(start + i)} />
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        ) : tab === 'albums' && album === null && !view ? (
           <div className="grid grid-cols-2 gap-3 px-3 @2xl:grid-cols-4 @5xl:grid-cols-6">
             {albums?.length === 0 && <p className="col-span-2 py-16 text-center text-sm text-muted">{t('gallery.empty')}</p>}
             {albums?.map((a) => (
@@ -278,11 +569,11 @@ export function Gallery() {
               </Link>
             ))}
           </div>
-        ) : items && items.length === 0 ? (
+        ) : items && items.length === 0 && videoHits.length === 0 ? (
           <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
             <EmptyFolderArt />
-            <p className="font-medium text-ink">{t('gallery.empty')}</p>
-            <p className="text-sm text-muted">{t('gallery.emptyHint')}</p>
+            <p className="font-medium text-ink">{view ? t('gallery.noResults') : t('gallery.empty')}</p>
+            {!view && <p className="text-sm text-muted">{t('gallery.emptyHint')}</p>}
           </div>
         ) : (
           <>
@@ -308,6 +599,21 @@ export function Gallery() {
                 </div>
               </section>
             ))}
+            {videoHits.length > 0 && (
+              <section className="mb-3">
+                <h2 className="px-4 py-1.5 text-sm font-semibold text-heading">{t('gallery.inVideos')}</h2>
+                <div className="grid grid-cols-3 gap-0.5 @2xl:grid-cols-5 @5xl:grid-cols-7">
+                  {videoHits.map((m) => (
+                    <Thumb
+                      key={m.path}
+                      m={m}
+                      caption={t('gallery.videoAt', { t: fmtTime(m.t) })}
+                      onOpen={() => window.open(`/api/fs/file?path=${encodeURIComponent(m.path)}#t=${Math.floor(m.t)}`, '_blank')}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
             <div ref={sentinel} className="h-10" />
             {album !== null && (
               <p className="pb-4 text-center">
@@ -350,7 +656,16 @@ export function Gallery() {
         </ul>
       </Dialog>
 
-      {preview !== null && items && items[preview] && <Preview items={items.map(toEntry)} index={preview} onIndex={setPreview} onClose={() => setPreview(null)} onDelete={(e) => void remove(e)} />}
+      {preview !== null && items && items[preview] && (
+        <Preview
+          items={items.map(toEntry)}
+          index={preview}
+          onIndex={setPreview}
+          onClose={() => setPreview(null)}
+          onDelete={(e) => void remove(e)}
+          onSimilar={vision?.installed ? (e) => openView({ kind: 'similar', path: e.path }) : undefined}
+        />
+      )}
     </>
   );
 }

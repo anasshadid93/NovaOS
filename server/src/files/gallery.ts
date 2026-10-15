@@ -144,19 +144,21 @@ export interface MediaItem {
 }
 
 /** Game artwork (covers, screenshots, marquees under Games/) and backup folders are not photos. */
-const NOT_GALLERY = /(^|\/)(Games|Backups|\.trash|\.thumbs|thumbnails|extrafanart|extrathumbs)\/|^(ollama|apps|workspace|docker)\//i;
+/** Not photos: game and backup trees, thumbnails, Jellyfin artwork folders, and source-code trees (web assets, textures, build output). */
+const NOT_GALLERY =
+  /(^|\/)(Games|Backups|\.trash|\.thumbs|thumbnails|extrafanart|extrathumbs|node_modules|dist|build|src|public|static|textures|vendor|oem|\.git|[^/]*source code[^/]*)\/|^(ollama|apps|workspace|docker)\//i;
 /** The film/series library and torrent payloads: their images are artwork and samples, never photos (videos stay listed). */
 const LIBRARY = /(^|\/)(Media|Downloads\/Torrents)\//;
 /** Media-library artwork Jellyfin keeps next to films and episodes. */
 const ARTWORK = /(^|\/)(poster|fanart|backdrop|banner|logo|landscape|thumb|clearart|clearlogo|disc|folder|season\d*-poster|[^/]*-thumb)\.(jpe?g|png|webp)$/i;
 
-async function media(): Promise<MediaItem[]> {
-  const files = (await fileIndex()).files.filter((f) => !NOT_GALLERY.test(f.path) && !ARTWORK.test(f.path) && (f.cat === 'videos' || (f.cat === 'images' && f.size >= MIN_IMAGE_BYTES && !LIBRARY.test(f.path))));
+export async function media(): Promise<MediaItem[]> {
+  const files = (await fileIndex()).files.filter(
+    (f) => !NOT_GALLERY.test(f.path) && !ARTWORK.test(f.path) && (f.cat === 'videos' || (f.cat === 'images' && f.size >= MIN_IMAGE_BYTES && !LIBRARY.test(f.path))),
+  );
   fillExifCache(files);
   const taken = new Map((getDb().prepare('SELECT path, taken FROM media_meta WHERE taken IS NOT NULL').all() as { path: string; taken: number }[]).map((r) => [r.path, r.taken]));
-  const list = files
-    .map((f) => ({ path: f.path, cat: f.cat as MediaItem['cat'], size: f.size, mtime: f.mtime, taken: taken.get(f.path) ?? f.mtime }))
-    .sort((a, b) => b.taken - a.taken);
+  const list = files.map((f) => ({ path: f.path, cat: f.cat as MediaItem['cat'], size: f.size, mtime: f.mtime, taken: taken.get(f.path) ?? f.mtime })).sort((a, b) => b.taken - a.taken);
   warmThumbs(list);
   return list;
 }
@@ -205,12 +207,7 @@ export async function galleryRoutes(app: FastifyInstance) {
         name: v.name,
         removable: v.removable || v.transport === 'usb',
         state: v.state,
-        count:
-          v.id === 'internal'
-            ? all.filter((m) => !ext.some((e) => under(m.path, e.path!))).length
-            : v.state === 'mounted' && v.path
-              ? all.filter((m) => under(m.path, v.path!)).length
-              : null,
+        count: v.id === 'internal' ? all.filter((m) => !ext.some((e) => under(m.path, e.path!))).length : v.state === 'mounted' && v.path ? all.filter((m) => under(m.path, v.path!)).length : null,
       }));
   });
 

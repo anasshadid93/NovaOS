@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { ArrowDownload24Regular, ChevronLeft24Regular, ChevronRight24Regular, Delete24Regular, Dismiss24Regular } from '@fluentui/react-icons';
+import { ArrowDownload24Regular, ChevronLeft24Regular, ChevronRight24Regular, Delete24Regular, Dismiss24Regular, ImageSearch24Regular } from '@fluentui/react-icons';
 import { api } from '../../lib/api';
 import { fileUrl, type Entry } from '../../lib/fm';
 import { formatBytes } from '../../lib/format';
@@ -15,7 +15,21 @@ const PdfViewer = lazy(() => import('./PdfViewer'));
  * Full-screen viewer. `items` are the files of the current folder so the user
  * can swipe/arrow between them; videos and audio stream with seeking (HTTP Range).
  */
-export function Preview({ items, index, onIndex, onClose, onDelete }: { items: Entry[]; index: number; onIndex: (i: number) => void; onClose: () => void; onDelete?: (e: Entry) => void }) {
+export function Preview({
+  items,
+  index,
+  onIndex,
+  onClose,
+  onDelete,
+  onSimilar,
+}: {
+  items: Entry[];
+  index: number;
+  onIndex: (i: number) => void;
+  onClose: () => void;
+  onDelete?: (e: Entry) => void;
+  onSimilar?: (e: Entry) => void;
+}) {
   const { t, formatRelative } = useI18n();
   const e = items[index];
   const [text, setText] = useState<{ text: string; truncated: boolean } | null>(null);
@@ -24,7 +38,10 @@ export function Preview({ items, index, onIndex, onClose, onDelete }: { items: E
 
   useEffect(() => {
     setText(null);
-    if (isText) api<{ text: string; truncated: boolean }>(`/api/fs/text?path=${encodeURIComponent(e.path)}`).then(setText).catch(() => undefined);
+    if (isText)
+      api<{ text: string; truncated: boolean }>(`/api/fs/text?path=${encodeURIComponent(e.path)}`)
+        .then(setText)
+        .catch(() => undefined);
   }, [e?.path, isText]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Audio goes to the app-wide player (keeps playing after closing), with this folder as the queue.
@@ -33,7 +50,10 @@ export function Preview({ items, index, onIndex, onClose, onDelete }: { items: E
     const cur = player.current();
     if (cur?.path === e.path) return;
     const audio = items.filter((x) => x.cat === 'audio');
-    player.play(audio.map((x) => trackFromPath(x.path)), audio.findIndex((x) => x.path === e.path));
+    player.play(
+      audio.map((x) => trackFromPath(x.path)),
+      audio.findIndex((x) => x.path === e.path),
+    );
   }, [e?.path]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -106,7 +126,7 @@ export function Preview({ items, index, onIndex, onClose, onDelete }: { items: E
         touch.current = null;
         const rtl = document.documentElement.dir === 'rtl';
         if (Math.abs(dx) < 60) return;
-        const next = (dx < 0) !== rtl ? index + 1 : index - 1;
+        const next = dx < 0 !== rtl ? index + 1 : index - 1;
         if (next >= 0 && next < items.length) onIndex(next);
       }}
     >
@@ -125,6 +145,11 @@ export function Preview({ items, index, onIndex, onClose, onDelete }: { items: E
         <a href={fileUrl(e.path, true)} className={btn} aria-label={t('fm.download')}>
           <ArrowDownload24Regular aria-hidden />
         </a>
+        {onSimilar && e.cat === 'images' && (
+          <button type="button" className={btn} onClick={() => onSimilar(e)} aria-label={t('gallery.similar')}>
+            <ImageSearch24Regular aria-hidden />
+          </button>
+        )}
         {onDelete && (
           <button type="button" className={btn} onClick={() => onDelete(e)} aria-label={t('fm.delete')}>
             <Delete24Regular aria-hidden />
@@ -145,7 +170,9 @@ export function Preview({ items, index, onIndex, onClose, onDelete }: { items: E
         )}
       </div>
       <p className="safe-bottom pb-2 text-center text-xs text-white/50 tabular-nums">
-        <span dir="ltr">{index + 1} / {items.length}</span>
+        <span dir="ltr">
+          {index + 1} / {items.length}
+        </span>
       </p>
     </div>
   );

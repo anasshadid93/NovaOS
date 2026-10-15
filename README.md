@@ -35,6 +35,7 @@ setup wizard, updates from GitHub Releases with rollback.
 - **Desktop mode**: on a laptop or TV browser it becomes a window manager with a dock and widgets.
 - **Android app**: phones and Android TV; notifications from the server, "share to server" from any app, fingerprint lock.
 - **Arabic and English**, right-to-left done properly.
+- **Smart photo search** (optional): search photos by words in English or Arabic, people albums, categories, duplicates and moments inside videos, all on local models. See [docs/vision.md](docs/vision.md).
 
 ## Install
 

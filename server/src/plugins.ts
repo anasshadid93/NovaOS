@@ -64,6 +64,12 @@ export const PLUGINS: Plugin[] = [
     enabled: () => fs.existsSync(path.join(config.craftRoot, 'tradebot', 'app.json')),
   },
   {
+    id: 'vision',
+    needs: { kind: 'install', path: config.visionDir },
+    enabled: () => fs.existsSync(path.join(config.visionDir, 'model', 'img_clip_vit_b_16.xml')) && fs.existsSync(path.join(config.visionDir, 'venv', 'bin', 'python')),
+    detail: () => config.visionDir,
+  },
+  {
     id: 'services',
     needs: { kind: 'file', name: 'services.json' },
     enabled: () => fs.existsSync(varFile('services.json')),
@@ -80,7 +86,12 @@ export const PLUGINS: Plugin[] = [
 export const pluginEnabled = (id: string) => PLUGINS.find((p) => p.id === id)?.enabled() ?? false;
 
 export function pluginStatus() {
-  return PLUGINS.map((p) => ({ id: p.id, enabled: p.enabled(), needs: p.needs, detail: p.enabled() ? p.detail?.() ?? '' : '' }));
+  return PLUGINS.map((p) => ({
+    id: p.id,
+    enabled: p.enabled(),
+    needs: p.needs,
+    detail: p.enabled() ? (p.detail?.() ?? '') : '',
+  }));
 }
 
 export async function pluginRoutes(app: FastifyInstance) {
