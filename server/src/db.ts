@@ -349,6 +349,7 @@ const MIGRATIONS: string[] = [
      note TEXT,
      moves TEXT NOT NULL
    );`,
+  `CREATE TABLE news_equity (at INTEGER PRIMARY KEY, equity REAL NOT NULL, balance REAL NOT NULL);`,
 ];
 
 let db: DatabaseSync | null = null;

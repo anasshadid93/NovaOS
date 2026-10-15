@@ -33,7 +33,20 @@ export type EventType = (typeof EVENT_TYPES)[number];
 
 export const ASSETS = ['BTC', 'ETH', 'SOL', 'GOLD', 'SILVER', 'OIL', 'SPX', 'DXY'] as const;
 export type Asset = (typeof ASSETS)[number];
-/** Assets the paper account can hold (Binance spot symbols). The rest are watched for context. */
+/** Where each asset's price comes from. Crypto and PAXG (gold) from Binance spot; the rest from Yahoo (futures/index quotes). */
+export const SYMBOLS: Record<Asset, { source: 'binance' | 'yahoo'; symbol: string }> = {
+  BTC: { source: 'binance', symbol: 'BTCUSDT' },
+  ETH: { source: 'binance', symbol: 'ETHUSDT' },
+  SOL: { source: 'binance', symbol: 'SOLUSDT' },
+  GOLD: { source: 'binance', symbol: 'PAXGUSDT' },
+  SILVER: { source: 'yahoo', symbol: 'SI=F' },
+  OIL: { source: 'yahoo', symbol: 'CL=F' },
+  SPX: { source: 'yahoo', symbol: '^GSPC' },
+  DXY: { source: 'yahoo', symbol: 'DX-Y.NYB' },
+};
+/** Assets the paper account holds out of the box (the owner can switch more on in Settings). */
+export const DEFAULT_TRADABLE: Asset[] = ['BTC', 'ETH', 'SOL', 'GOLD'];
+/** Kept for the price fetcher and tests: Binance symbols by asset. */
 export const TRADABLE: Partial<Record<Asset, string>> = { BTC: 'BTCUSDT', ETH: 'ETHUSDT', SOL: 'SOLUSDT', GOLD: 'PAXGUSDT' };
 const YAHOO: Partial<Record<Asset, string>> = { SILVER: 'SI=F', OIL: 'CL=F', SPX: '^GSPC', DXY: 'DX-Y.NYB' };
 

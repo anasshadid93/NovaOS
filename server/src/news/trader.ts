@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { config } from '../config.js';
-import { ASSETS, TRADABLE, playFor, type Asset, type EventType, type Playbook } from './playbook.js';
+import { ASSETS, DEFAULT_TRADABLE, SYMBOLS, playFor, type Asset, type EventType, type Playbook } from './playbook.js';
 
 /**
  * The paper account of the News Trader and its rules. Pure decisions in `decide()` / `manage()`,
@@ -49,6 +49,10 @@ export interface Account {
   updatedAt: number;
 }
 export interface Rules {
+  /** which assets the paper account may hold */
+  assets: Asset[];
+  startBalance: number;
+  scanEveryMin: number;
   riskPct: number;
   maxOpen: number;
   stopPct: number;
@@ -61,7 +65,7 @@ export interface Rules {
   minReliability: number;
   minAvgMove: number;
 }
-export const RULES: Rules = { riskPct: 5, maxOpen: 3, stopPct: 4, targetCapPct: 8, targetMinPct: 3, trailArmPct: 3, trailPct: 3, dailyLossPct: 3, minConfidence: 0.7, minReliability: 0.6, minAvgMove: 2 };
+export const RULES: Rules = { assets: DEFAULT_TRADABLE, startBalance: 1000, scanEveryMin: 10, riskPct: 5, maxOpen: 3, stopPct: 4, targetCapPct: 8, targetMinPct: 3, trailArmPct: 3, trailPct: 3, dailyLossPct: 3, minConfidence: 0.7, minReliability: 0.6, minAvgMove: 2 };
 
 export interface EventSignal {
   eventId: number;
@@ -113,7 +117,7 @@ export function decide(a: Account, pb: Playbook | null, sig: EventSignal, prices
   if (a.tradedEvents.includes(sig.eventId)) return { open, skipped, closeAssets };
   const dayLoss = -a.dayPnl / a.balance;
   for (const asset of sig.assets) {
-    const symbol = TRADABLE[asset];
+    const symbol = rules.assets.includes(asset) ? SYMBOLS[asset].symbol : null;
     if (!symbol) {
       skipped.push({ asset, why: 'watch-only asset' });
       continue;
@@ -223,4 +227,33 @@ export function equity(a: Account, prices: Record<string, number>) {
   return r2(a.balance + a.positions.reduce((s, p) => s + ((prices[p.symbol] ?? p.entry) - p.entry) * p.qty, 0));
 }
 
-export const tradableAssets = () => ASSETS.filter((x) => TRADABLE[x]);
+export const allAssets = ASSETS;
+
+/** Rules from the saved settings on top of the defaults, with every number kept sane. */
+export function rulesFrom(saved: Record<string, unknown> | undefined): Rules {
+  const r: Rules = { ...RULES, assets: [...RULES.assets] };
+  if (!saved) return r;
+  const num = (k: keyof Rules, min: number, max: number) => {
+    const v = Number(saved[k]);
+    if (Number.isFinite(v)) (r as unknown as Record<string, number>)[k] = Math.min(max, Math.max(min, v));
+  };
+  num('riskPct', 1, 25);
+  num('maxOpen', 1, 10);
+  num('stopPct', 1, 20);
+  num('targetCapPct', 2, 50);
+  num('targetMinPct', 1, 20);
+  num('trailArmPct', 1, 20);
+  num('trailPct', 1, 20);
+  num('dailyLossPct', 1, 20);
+  num('minConfidence', 0.3, 1);
+  num('minReliability', 0.3, 1);
+  num('minAvgMove', 0, 20);
+  num('scanEveryMin', 5, 120);
+  num('startBalance', 100, 1e7);
+  if (Array.isArray(saved.assets)) {
+    const xs = saved.assets.map(String).filter((a): a is Asset => (ASSETS as readonly string[]).includes(a));
+    if (xs.length) r.assets = xs;
+  }
+  if (r.targetMinPct > r.targetCapPct) r.targetMinPct = r.targetCapPct;
+  return r;
+}

@@ -12,6 +12,8 @@ import { ASSETS, EVENT_TYPES, type Asset, type EventType } from './playbook.js';
 export interface LlmSettings {
   anthropicKey?: string;
   model?: string;
+  /** Trading rules and the assets to trade, as saved from the Settings tab (partial: defaults fill the rest). */
+  rules?: Record<string, unknown>;
 }
 export interface Assessment {
   i: number;
