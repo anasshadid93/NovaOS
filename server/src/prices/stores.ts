@@ -45,21 +45,42 @@ const decode = (s: string) =>
     .trim();
 const num = (s: string) => Number(s.replace(/[^\d.]/g, '')) || null;
 
-/** One request at a time per host, with a pause: polite and far below any rate limit. */
+/**
+ * One request at a time per host with a pause between them. Amazon starts answering with a captcha
+ * page after a burst (seen after ~80 quick requests): on the first captcha we wait and retry once,
+ * on the second the host is left alone for a while and the remaining listings keep their last point.
+ */
 const lastHit = new Map<string, number>();
+const coolingUntil = new Map<string, number>();
+const PAUSE_MS = 4000;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const isCaptcha = (html: string) => /captcha|automated access|robot check/i.test(html.slice(0, 20_000)) && !/productTitle|s-result-item/.test(html);
+
 async function fetchHtml(url: string, extraHeaders: Record<string, string> = {}): Promise<string> {
   const host = new URL(url).host;
-  const wait = (lastHit.get(host) ?? 0) + 2500 - Date.now();
-  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-  lastHit.set(host, Date.now());
-  const res = await fetch(url, {
-    headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml', 'Accept-Language': 'en-US,en;q=0.9', ...extraHeaders },
-    redirect: 'follow',
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status} from ${host}`);
-  const html = await res.text();
-  if (/captcha|automated access|robot check/i.test(html.slice(0, 20_000)) && !/productTitle|s-result-item/.test(html)) throw new Error(`${host} asked for a captcha`);
+  const cooling = coolingUntil.get(host) ?? 0;
+  if (cooling > Date.now()) throw new Error(`${host} is cooling down after a captcha (${Math.ceil((cooling - Date.now()) / 60_000)} min left)`);
+  const get = async () => {
+    const wait = (lastHit.get(host) ?? 0) + PAUSE_MS - Date.now();
+    if (wait > 0) await sleep(wait);
+    lastHit.set(host, Date.now());
+    const res = await fetch(url, {
+      headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml', 'Accept-Language': 'en-US,en;q=0.9', ...extraHeaders },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} from ${host}`);
+    return res.text();
+  };
+  let html = await get();
+  if (isCaptcha(html)) {
+    await sleep(90_000);
+    html = await get();
+    if (isCaptcha(html)) {
+      coolingUntil.set(host, Date.now() + 15 * 60_000);
+      throw new Error(`${host} asked for a captcha`);
+    }
+  }
   return html;
 }
 

@@ -187,7 +187,8 @@ registerTask('prices.refresh', async (ctx, params) => {
           const key = `prices.seeded:${store}:${q}`;
           if (kvGet(key)) continue;
           try {
-            const hits = (await search(store, q, 10)).filter((h) => h.price !== null && !JUNK.test(h.title) && MATCHES[category].test(h.title)).slice(0, PER_QUERY);
+            // Search cards don't always show a price (graphics cards often say "See options"); the quote does.
+            const hits = (await search(store, q, 10)).filter((h) => !JUNK.test(h.title) && MATCHES[category].test(h.title)).slice(0, PER_QUERY);
             for (const h of hits) addProduct({ store, extId: h.extId, title: h.title, category, url: h.url, source: 'seed' });
             // An empty answer (a light page, a hiccup) is retried next time; only real results settle a query.
             if (hits.length) kvSet(key, String(Date.now()));
