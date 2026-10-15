@@ -1336,7 +1336,7 @@ export const en = {
   'android.tailscale': 'The device needs Tailscale running to reach the server.',
   'section.prices': "Prices",
   'prices.title': "PC part prices",
-  'prices.hint': "RAM, SSD/HDD and graphics cards on Amazon.ae and Amazon.com, quoted twice a day. Changes are in USD so both markets compare.",
+  'prices.hint': 'RAM, SSD/HDD and graphics cards on Amazon.ae and Amazon.com, quoted around the clock a few listings at a time. Changes are in USD so both markets compare.',
   'prices.market': "Market",
   'prices.all': "Both",
   'prices.uae': "UAE",

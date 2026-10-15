@@ -1418,7 +1418,7 @@ export const ar: Record<MessageKey, string> & Record<string, string> = {
   'android.tailscale': 'الجهاز يحتاج Tailscale شغّال ليصل إلى السيرفر.',
   'section.prices': "الأسعار",
   'prices.title': "أسعار قطع الكمبيوتر",
-  'prices.hint': "الرام وأقراص SSD/HDD وكروت الشاشة على Amazon.ae و Amazon.com، تُجمع على مدار اليوم بضعة منتجات كل ساعة. التغيّرات بالدولار حتى يقارَن السوقان.",
+  'prices.hint': 'الرام وأقراص SSD/HDD وكروت الشاشة على Amazon.ae و Amazon.com، تُجمع على مدار اليوم بضعة منتجات كل ساعة. التغيّرات بالدولار حتى يقارَن السوقان.',
   'prices.market': "السوق",
   'prices.all': "الاثنان",
   'prices.uae': "الإمارات",
