@@ -5,6 +5,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { config } from '../config.js';
 import { checkUrl } from '../downloads/downloads.js';
+import { ytDlpAuthArgs } from '../downloads/ytDlpAuth.js';
 import { transcribe } from './bot.js';
 
 /**
@@ -35,11 +36,7 @@ export async function videoText(raw: string) {
   const url = (await checkUrl(raw)).toString();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mm-vt-'));
   try {
-    const { stdout } = await execFileP(
-      config.ytDlp,
-      ['--js-runtimes', 'node', '--no-playlist', '--no-simulate', '--skip-download', '--write-subs', '--write-auto-subs', '--sub-langs', 'ar,ar-orig,en,en-orig', '--sub-format', 'vtt', '--print', '%(title)s\t%(channel,uploader)s\t%(duration)s', '-o', path.join(dir, 's.%(ext)s'), '--', url],
-      { timeout: 120_000, maxBuffer: 2 * 1024 * 1024 },
-    ).catch((e: { stdout?: string; stderr?: string }) => {
+    const { stdout } = await execFileP(config.ytDlp, ['--js-runtimes', 'node', ...ytDlpAuthArgs(), '--no-playlist', '--no-simulate', '--skip-download', '--write-subs', '--write-auto-subs', '--sub-langs', 'ar,ar-orig,en,en-orig', '--sub-format', 'vtt', '--print', '%(title)s\t%(channel,uploader)s\t%(duration)s', '-o', path.join(dir, 's.%(ext)s'), '--', url], { timeout: 120_000, maxBuffer: 2 * 1024 * 1024 }).catch((e: { stdout?: string; stderr?: string }) => {
       // Some subtitle variants may fail (429) while others were written: keep going if we got the info line.
       if (e.stdout) return { stdout: e.stdout };
       throw new Error((e.stderr ?? '').split('\n').find((l) => l.startsWith('ERROR')) ?? 'yt-dlp failed');
@@ -56,7 +53,9 @@ export async function videoText(raw: string) {
       source = 'subtitles';
       language = /\.([\w-]+)\.vtt$/.exec(pick)?.[1] ?? null;
     } else if (duration && duration <= 600) {
-      await execFileP(config.ytDlp, ['--js-runtimes', 'node', '--no-playlist', '-f', 'bestaudio/best', '-o', path.join(dir, 'a.%(ext)s'), '--', url], { timeout: 300_000 });
+      await execFileP(config.ytDlp, ['--js-runtimes', 'node', ...ytDlpAuthArgs(), '--no-playlist', '-f', 'bestaudio/best', '-o', path.join(dir, 'a.%(ext)s'), '--', url], {
+        timeout: 300_000,
+      });
       const audio = fs.readdirSync(dir).find((f) => f.startsWith('a.'));
       if (audio) {
         text = await transcribe(fs.readFileSync(path.join(dir, audio)));

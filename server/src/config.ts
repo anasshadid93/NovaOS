@@ -126,6 +126,12 @@ export const config = {
   /** GRERPS database for the ERP bot commands. Empty = off. */
   grerpsDb: expand(str('MANAR_GRERPS_DB', 'grerpsDb', '')),
   ytDlp: expand(str('MANAR_YTDLP', 'ytDlp', 'yt-dlp')),
+  /** Netscape-format browser cookies used by yt-dlp for sites (notably YouTube) that require login. */
+  ytDlpCookies: expand(str('MANAR_YTDLP_COOKIES', 'ytDlpCookies', path.join(dataDir, 'yt-dlp-cookies.txt'))),
+  /** Optional persistent Chromium profile and web UI used for interactive sign-in. */
+  ytDlpBrowserProfile: expand(str('MANAR_YTDLP_BROWSER_PROFILE', 'ytDlpBrowserProfile', '')),
+  ytDlpBrowserUrl: str('MANAR_YTDLP_BROWSER_URL', 'ytDlpBrowserUrl', ''),
+  ytDlpBrowserContainer: str('MANAR_YTDLP_BROWSER_CONTAINER', 'ytDlpBrowserContainer', ''),
 
   // ---- Voice assistant persona (optional; nothing personal ships in the code) ----
   /** How the voice assistant addresses the owner. Empty = "the owner". */
@@ -175,7 +181,13 @@ export function allowedOrigins(): string[] {
 /** "+04:00" for the configured time zone (used when a time has no zone of its own). */
 export function tzOffset(date = new Date()): string {
   try {
-    const part = new Intl.DateTimeFormat('en-US', { timeZone: config.timezone, timeZoneName: 'longOffset' }).formatToParts(date).find((p) => p.type === 'timeZoneName')?.value ?? '';
+    const part =
+      new Intl.DateTimeFormat('en-US', {
+        timeZone: config.timezone,
+        timeZoneName: 'longOffset',
+      })
+        .formatToParts(date)
+        .find((p) => p.type === 'timeZoneName')?.value ?? '';
     const m = /GMT([+-]\d\d:\d\d)/.exec(part);
     return m ? m[1] : '+00:00';
   } catch {

@@ -33,6 +33,7 @@ const SECTIONS: { href: string; label: MessageKey }[] = [
   { href: '/downloads', label: 'section.downloads' },
   { href: '/backup', label: 'section.backup' },
   { href: '/games', label: 'section.games' },
+  { href: '/prices', label: 'section.prices' },
   { href: '/watch', label: 'section.watch' },
   { href: '/health', label: 'section.health' },
   { href: '/network', label: 'section.network' },

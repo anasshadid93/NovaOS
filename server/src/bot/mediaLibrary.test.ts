@@ -26,11 +26,12 @@ describe('media library: reading release names', () => {
   });
   it('places them the way Jellyfin reads them', () => {
     expect(destination(parseRelease('Dracula.Eternal.2026.1080p.WEB.mkv'), 'movies', '.mkv')).toBe('Movies/Dracula Eternal (2026)/Dracula Eternal (2026).mkv');
-    expect(destination(parseRelease('Marshals S02E02 1080p WEB'), 'series', '.mkv', 'Marshals', 2026)).toBe('Series/Marshals (2026)/Season 02/Marshals S02E02.mkv');
+    expect(destination(parseRelease('Marshals S02E02 1080p WEB'), 'series', '.mkv', 'Marshals', 2026)).toBe('Foreign Series/Marshals (2026)/Season 02/Marshals S02E02.mkv');
     expect(destination(parseRelease('[Erai-raws] Frieren - 03 [1080p].mkv'), 'anime', '.mkv', 'Frieren: Beyond Journey\'s End', 2023)).toBe("Anime/Frieren Beyond Journey's End (2023)/Season 01/Frieren Beyond Journey's End S01E03.mkv");
   });
   it('sorts by kind: TVmaze for series, Jellyfin genres for films', () => {
     expect(seriesKind({ name: 'x', type: 'Scripted', genres: ['Drama'] }, false)).toBe('series');
+    expect(seriesKind({ name: 'باب الحارة', type: 'Scripted', genres: ['Drama'], language: 'Arabic' }, false)).toBe('arabicSeries');
     expect(seriesKind({ name: 'x', type: 'Animation', genres: ['Anime'], language: 'Japanese' }, false)).toBe('anime');
     expect(seriesKind({ name: 'x', type: 'Animation', genres: ['Comedy'], language: 'English' }, false)).toBe('cartoonSeries');
     expect(seriesKind({ name: 'x', type: 'Documentary' }, false)).toBe('documentaries');
@@ -117,4 +118,3 @@ describe('media library: reading release names', () => {
     expect(streams).toEqual(['h264', 'aac']);
   });
 });
-

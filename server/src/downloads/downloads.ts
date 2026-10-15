@@ -13,6 +13,7 @@ import { invalidateIndex } from '../files/files.js';
 import { relOf } from '../files/fsops.js';
 import { createShareFor } from '../share/share.js';
 import { isPrivateIp } from '../bot/ip.js';
+import { ytDlpAuthArgs } from './ytDlpAuth.js';
 
 /**
  * Video/audio downloads with yt-dlp (YouTube, Instagram, X, TikTok, Facebook and ~1800 sites),
@@ -67,37 +68,15 @@ const set = (id: number, patch: Partial<Download>) => {
 
 export async function startDownload(raw: string, audio: boolean): Promise<Download> {
   const u = await checkUrl(raw);
-  const r = getDb().prepare("INSERT INTO downloads(url, audio, status, created_at) VALUES(?, ?, 'queued', ?)").run(u.toString(), audio ? 1 : 0, Date.now());
+  const r = getDb()
+    .prepare("INSERT INTO downloads(url, audio, status, created_at) VALUES(?, ?, 'queued', ?)")
+    .run(u.toString(), audio ? 1 : 0, Date.now());
   setImmediate(pump);
   return get(Number(r.lastInsertRowid))!;
 }
 
 export function ytDlpArgs(url: string, audio: boolean, dir: string): string[] {
-  return [
-    '--no-playlist',
-    '--newline',
-    '--progress',
-    '--no-colors',
-    '--no-mtime',
-    '--no-part',
-    '--max-filesize',
-    '8G',
-    '--js-runtimes',
-    'node',
-    '-P',
-    dir,
-    '-o',
-    '%(title).150B [%(id)s].%(ext)s',
-    '--progress-template',
-    'download:PROG %(progress._percent_str)s of %(progress._total_bytes_str)s%(progress._total_bytes_estimate_str)s at %(progress._speed_str)s ETA %(progress._eta_str)s',
-    '--print',
-    'before_dl:TITLE %(title)s',
-    '--print',
-    'after_move:FILE %(filepath)s',
-    ...(audio ? ['-x', '--audio-format', 'mp3', '--audio-quality', '0'] : ['-f', 'bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b', '--merge-output-format', 'mp4']),
-    '--',
-    url,
-  ];
+  return ['--no-playlist', '--newline', '--progress', '--no-colors', '--no-mtime', '--no-part', '--max-filesize', '8G', '--js-runtimes', 'node', ...ytDlpAuthArgs(), '-P', dir, '-o', '%(title).150B [%(id)s].%(ext)s', '--progress-template', 'download:PROG %(progress._percent_str)s of %(progress._total_bytes_str)s%(progress._total_bytes_estimate_str)s at %(progress._speed_str)s ETA %(progress._eta_str)s', '--print', 'before_dl:TITLE %(title)s', '--print', 'after_move:FILE %(filepath)s', ...(audio ? ['-x', '--audio-format', 'mp3', '--audio-quality', '0'] : ['-f', 'bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b', '--merge-output-format', 'mp4']), '--', url];
 }
 
 function pump() {
@@ -118,7 +97,12 @@ async function openDirect(raw: string, init: RequestInit, signal: AbortSignal): 
   let url = raw;
   for (let hop = 0; hop < 6; hop++) {
     await checkUrl(url);
-    const r = await fetch(url, { ...init, redirect: 'manual', signal, headers: { 'user-agent': 'Mozilla/5.0 NovaOS', ...(init.headers ?? {}) } });
+    const r = await fetch(url, {
+      ...init,
+      redirect: 'manual',
+      signal,
+      headers: { 'user-agent': 'Mozilla/5.0 NovaOS', ...(init.headers ?? {}) },
+    });
     const loc = r.headers.get('location');
     if (r.status >= 300 && r.status < 400 && loc) {
       url = new URL(loc, url).toString();
@@ -139,7 +123,11 @@ export function fileNameFor(url: string, disposition: string | null): string {
       name = '';
     }
   }
-  name = name.replace(/[\/\\\0]/g, '_').replace(/^\.+/, '').trim().slice(0, 180);
+  name = name
+    .replace(/[\/\\\0]/g, '_')
+    .replace(/^\.+/, '')
+    .trim()
+    .slice(0, 180);
   return name || `download-${Date.now()}`;
 }
 
@@ -196,7 +184,9 @@ async function runDirect(d: Download): Promise<boolean> {
         const speed = ((got - last.got) * 1000) / (now - last.at);
         const pct = total ? `${((got / total) * 100).toFixed(1)}%` : fmtBytes(got);
         const eta = total && speed > 0 ? ` ETA ${Math.round((total - got) / speed)}s` : '';
-        set(d.id, { progress: `${pct}${total ? ` of ${fmtBytes(total)}` : ''} at ${fmtBytes(speed)}/s${eta}` });
+        set(d.id, {
+          progress: `${pct}${total ? ` of ${fmtBytes(total)}` : ''} at ${fmtBytes(speed)}/s${eta}`,
+        });
         last = { at: now, got };
       }
     }
@@ -225,7 +215,10 @@ function run(d: Download) {
 
 function runYtDlp(d: Download) {
   fs.mkdirSync(DIR(), { recursive: true });
-  const child = spawn(config.ytDlp, ytDlpArgs(d.url, !!d.audio, DIR()), { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, PATH: `/usr/bin:/bin:${process.env.PATH ?? ''}` } });
+  const child = spawn(config.ytDlp, ytDlpArgs(d.url, !!d.audio, DIR()), {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, PATH: `/usr/bin:/bin:${process.env.PATH ?? ''}` },
+  });
   active.set(d.id, child);
   let file: string | null = null;
   let err = '';
@@ -235,7 +228,9 @@ function runYtDlp(d: Download) {
     else if (line.startsWith('FILE ')) file = line.slice(5).trim();
     else if (line.startsWith('PROG ') && Date.now() - lastSave > 2000) {
       lastSave = Date.now();
-      set(d.id, { progress: line.slice(5).replace(/NA/g, '').replace(/\s+/g, ' ').trim() });
+      set(d.id, {
+        progress: line.slice(5).replace(/NA/g, '').replace(/\s+/g, ' ').trim(),
+      });
     } else if (/^ERROR:/.test(line)) err = line.replace(/^ERROR:\s*/, '');
   };
   for (const s of [child.stdout, child.stderr]) {
@@ -269,9 +264,22 @@ async function finish(id: number, file: string | null, error: string) {
     } catch {
       /* the file is still there; just no link */
     }
-    set(id, { status: 'done', path: rel, size: fs.statSync(file).size, share_url: share, progress: null, finished_at: Date.now() });
+    set(id, {
+      status: 'done',
+      path: rel,
+      size: fs.statSync(file).size,
+      share_url: share,
+      progress: null,
+      finished_at: Date.now(),
+    });
     invalidateIndex();
-  } else set(id, { status: 'failed', error: error.slice(0, 500), progress: null, finished_at: Date.now() });
+  } else
+    set(id, {
+      status: 'failed',
+      error: error.slice(0, 500),
+      progress: null,
+      finished_at: Date.now(),
+    });
   await announce(get(id)!);
 }
 
@@ -310,12 +318,19 @@ export function recoverDownloads() {
 
 export async function downloadRoutes(app: FastifyInstance) {
   if (!process.env.VITEST) recoverDownloads();
-  app.get('/api/downloads', { preHandler: requireAuth }, async () => ({ downloads: listDownloads(50) }));
+  app.get('/api/downloads', { preHandler: requireAuth }, async () => ({
+    downloads: listDownloads(50),
+  }));
   app.post<{ Params: { id: string } }>('/api/downloads/:id/cancel', { preHandler: requireAuth }, async (req, reply) => {
     const id = Number(req.params.id);
     const d = get(id);
     if (!d) return reply.code(404).send({ error: 'not_found' });
-    if (d.status === 'queued') set(id, { status: 'failed', error: 'cancelled', finished_at: Date.now() });
+    if (d.status === 'queued')
+      set(id, {
+        status: 'failed',
+        error: 'cancelled',
+        finished_at: Date.now(),
+      });
     else active.get(id)?.kill('SIGTERM');
     return { ok: true };
   });

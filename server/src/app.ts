@@ -24,6 +24,7 @@ import { authRoutes } from './auth/routes.js';
 import { wizardRoutes } from './setup/wizard.js';
 import { pluginRoutes } from './plugins.js';
 import { selfUpdateRoutes } from './system/selfupdate.js';
+import { pricesRoutes, startPricesLoop } from './prices/prices.js';
 import { metricsRoutes } from './metrics/routes.js';
 import { storeRoutes } from './store/routes.js';
 import { systemRoutes } from './system/routes.js';
@@ -41,6 +42,7 @@ import { mediaRoutes } from './files/media.js';
 import { shareRoutes } from './share/share.js';
 import { botRoutes } from './bot/bot.js';
 import { downloadRoutes } from './downloads/downloads.js';
+import { videoDownloadRoutes } from './downloads/videoDownloads.js';
 import { galleryRoutes } from './files/gallery.js';
 import { voiceRoutes } from './voice/voice.js';
 import { startTradeBot } from './tradebot/engine.js';
@@ -111,6 +113,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   await app.register(wizardRoutes);
   await app.register(pluginRoutes);
   await app.register(selfUpdateRoutes);
+  await app.register(pricesRoutes);
   await app.register(credentialRoutes);
   await app.register(extractRoutes);
   await app.register(metricsRoutes);
@@ -132,6 +135,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   await app.register(shareRoutes);
   await app.register(botRoutes);
   await app.register(downloadRoutes);
+  await app.register(videoDownloadRoutes);
   await app.register(voiceRoutes);
   await app.register(backupRoutes);
   await app.register(gamesRoutes);
@@ -146,6 +150,9 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   // Trade Bot (paper trading): trades around the clock when ~/ArtCraft/tradebot is installed.
   const stopTradeBot = startTradeBot();
   app.addHook('onClose', async () => stopTradeBot());
+  // Prices (PC parts tracker): quotes every tracked listing twice a day.
+  const stopPrices = startPricesLoop();
+  app.addHook('onClose', async () => stopPrices());
   // Nightly backups to the Toshiba (backup/backup.ts).
   const stopBackups = startBackupLoop();
   app.addHook('onClose', async () => stopBackups());

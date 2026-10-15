@@ -33,11 +33,12 @@ export const LIB = {
   qbDownloads: '/downloads',
   jfMedia: '/media/Library',
 };
-export type Kind = 'movies' | 'series' | 'cartoons' | 'cartoonSeries' | 'anime' | 'documentaries' | 'videos';
-export const FOLDERS: Record<Kind, string> = { movies: 'Movies', series: 'Series', cartoons: 'Cartoons', cartoonSeries: 'Cartoon Series', anime: 'Anime', documentaries: 'Documentaries', videos: 'Videos' };
+export type Kind = 'movies' | 'series' | 'arabicSeries' | 'cartoons' | 'cartoonSeries' | 'anime' | 'documentaries' | 'videos';
+export const FOLDERS: Record<Kind, string> = { movies: 'Movies', series: 'Foreign Series', arabicSeries: 'Arabic Series', cartoons: 'Cartoons', cartoonSeries: 'Cartoon Series', anime: 'Anime', documentaries: 'Documentaries', videos: 'Videos' };
 export const LIBRARIES: { kind: Kind; name: string; type: 'movies' | 'tvshows' | 'homevideos' }[] = [
   { kind: 'movies', name: 'أفلام · Movies', type: 'movies' },
-  { kind: 'series', name: 'مسلسلات · Series', type: 'tvshows' },
+  { kind: 'arabicSeries', name: 'مسلسلات عربية · Arabic Series', type: 'tvshows' },
+  { kind: 'series', name: 'مسلسلات أجنبية · Foreign Series', type: 'tvshows' },
   { kind: 'cartoons', name: 'كرتون · Cartoons', type: 'movies' },
   { kind: 'cartoonSeries', name: 'مسلسلات كرتون · Cartoon Series', type: 'tvshows' },
   { kind: 'anime', name: 'أنمي · Anime', type: 'tvshows' },
@@ -167,6 +168,7 @@ export function seriesKind(show: Show | null, anime: boolean): Kind {
   if (anime || show?.genres?.includes('Anime') || (show?.type === 'Animation' && show.language === 'Japanese')) return 'anime';
   if (show?.type === 'Animation') return 'cartoonSeries';
   if (show?.type === 'Documentary') return 'documentaries';
+  if (show?.language === 'Arabic') return 'arabicSeries';
   return 'series';
 }
 async function tvmaze(title: string): Promise<Show | null> {
@@ -307,7 +309,7 @@ export async function placeVideo(src: string, dest: string): Promise<string> {
 
 /** Files of a finished torrent → their place in the library. Returns what was placed. */
 /** A qBittorrent category chosen when adding a torrent → the shelf it must go to (no guessing). */
-export const CATEGORY_KIND: Record<string, Kind> = { Movies: 'movies', Series: 'series', Cartoons: 'cartoons', 'Cartoon Series': 'cartoonSeries', Anime: 'anime', Documentaries: 'documentaries', Videos: 'videos' };
+export const CATEGORY_KIND: Record<string, Kind> = { Movies: 'movies', Series: 'series', 'Foreign Series': 'series', 'Arabic Series': 'arabicSeries', Cartoons: 'cartoons', 'Cartoon Series': 'cartoonSeries', Anime: 'anime', Documentaries: 'documentaries', Videos: 'videos' };
 /** A torrent/folder name as a show title: site tags, brackets and codes out. */
 export function cleanShowName(name: string): string {
   return (

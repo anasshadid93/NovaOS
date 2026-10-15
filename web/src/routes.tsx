@@ -51,6 +51,7 @@ const TailscaleInfo = page(() => import('./pages/SettingsPages'), 'TailscaleInfo
 const FirewallInfo = page(() => import('./pages/SettingsPages'), 'FirewallInfo');
 const Integrations = page(() => import('./pages/Integrations'), 'Integrations');
 const AndroidApp = page(() => import('./pages/AndroidApp'), 'AndroidApp');
+const Prices = page(() => import('./pages/Prices'), 'Prices');
 const PowerSettings = page(() => import('./pages/SettingsPages'), 'PowerSettings');
 const NotificationSettings = page(() => import('./pages/SettingsPages'), 'NotificationSettings');
 
@@ -101,6 +102,7 @@ export function AppRoutes() {
       <Route path="/settings/firewall" component={FirewallInfo} />
       <Route path="/settings/integrations" component={Integrations} />
       <Route path="/settings/android" component={AndroidApp} />
+      <Route path="/prices" component={Prices} />
       <Route path="/settings/power" component={PowerSettings} />
       <Route path="/settings/notifications" component={NotificationSettings} />
       <Route path="/tasks" component={Tasks} />

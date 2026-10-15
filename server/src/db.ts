@@ -256,6 +256,64 @@ const MIGRATIONS: string[] = [
      ip TEXT,
      created_at INTEGER NOT NULL
    );`,
+  `CREATE TABLE video_download_jobs (
+     id INTEGER PRIMARY KEY,
+     url TEXT NOT NULL,
+     title TEXT NOT NULL,
+     library TEXT NOT NULL,
+     season INTEGER NOT NULL DEFAULT 1,
+     quality TEXT NOT NULL,
+     subtitles INTEGER NOT NULL DEFAULT 1,
+     range_start INTEGER,
+     range_end INTEGER,
+     status TEXT NOT NULL DEFAULT 'queued',
+     progress TEXT,
+     output_dir TEXT,
+     error TEXT,
+     created_at INTEGER NOT NULL,
+     started_at INTEGER,
+     finished_at INTEGER
+   );
+   CREATE INDEX video_download_jobs_status ON video_download_jobs(status, id);
+   CREATE TABLE video_download_items (
+     id INTEGER PRIMARY KEY,
+     job_id INTEGER NOT NULL REFERENCES video_download_jobs(id) ON DELETE CASCADE,
+     source_id TEXT NOT NULL,
+     position INTEGER NOT NULL,
+     title TEXT NOT NULL,
+     duration INTEGER,
+     status TEXT NOT NULL DEFAULT 'queued',
+     progress TEXT,
+     path TEXT,
+     size INTEGER,
+     error TEXT,
+     UNIQUE(job_id, source_id)
+   );
+   CREATE INDEX video_download_items_job ON video_download_items(job_id, position);`,
+  `ALTER TABLE video_download_items ADD COLUMN source_position INTEGER;
+   UPDATE video_download_items SET source_position = position WHERE source_position IS NULL;`,
+  // Prices: tracked PC parts (RAM, SSD/HDD, GPUs) and their daily quotes per store.
+  `CREATE TABLE price_products (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     store TEXT NOT NULL,
+     ext_id TEXT NOT NULL,
+     title TEXT NOT NULL,
+     category TEXT NOT NULL,
+     url TEXT NOT NULL,
+     source TEXT NOT NULL DEFAULT 'seed',
+     enabled INTEGER NOT NULL DEFAULT 1,
+     created_at INTEGER NOT NULL,
+     UNIQUE(store, ext_id)
+   );
+   CREATE TABLE price_points (
+     product_id INTEGER NOT NULL REFERENCES price_products(id) ON DELETE CASCADE,
+     at INTEGER NOT NULL,
+     price REAL,
+     currency TEXT NOT NULL,
+     in_stock INTEGER NOT NULL DEFAULT 1,
+     PRIMARY KEY(product_id, at)
+   );
+   CREATE INDEX price_points_at ON price_points(product_id, at);`,
 ];
 
 let db: DatabaseSync | null = null;
