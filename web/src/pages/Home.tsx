@@ -22,6 +22,7 @@ import {
   Cloud48Color,
   DataTrending48Color,
   CoinMultiple48Color,
+  SearchSparkle48Color,
   DocumentFolder24Color,
   Image48Color,
   Notebook32Color,
@@ -36,6 +37,7 @@ import {
   Games24Filled,
   MoviesAndTv24Filled,
   ArrowTrending24Filled,
+  News24Filled,
   Heart48Color,
   HeartPulse24Filled,
   PhoneLaptop32Color,
@@ -204,6 +206,7 @@ export function Home() {
           <Tile href="/games" icon={Games24Filled} art={{ kind: 'fluent', glyph: Trophy48Color }} color="purple" label={t('section.games')} />
           <Tile href="/watch" icon={MoviesAndTv24Filled} art={{ kind: 'fluent', glyph: Video48Color }} color="red" label={t('section.watch')} />
           <Tile href="/prices" icon={ArrowTrending24Filled} art={{ kind: 'fluent', glyph: CoinMultiple48Color }} color="green" label={t('section.prices')} />
+          <Tile href="/news" icon={News24Filled} art={{ kind: 'fluent', glyph: SearchSparkle48Color }} color="orange" label={t('section.news')} />
           <Tile href="/health" icon={HeartPulse24Filled} art={{ kind: 'fluent', glyph: Heart48Color }} color="red" label={t('section.health')} />
           <Tile href="/network" icon={Wifi124Filled} art={{ kind: 'fluent', glyph: PhoneLaptop32Color }} color="teal" label={t('section.network')} />
           <Tile href="/tasks" icon={ClipboardTaskListLtr24Filled} art={{ kind: 'fluent', glyph: ClipboardTask24Color }} color="purple" label={t('section.tasks')} />

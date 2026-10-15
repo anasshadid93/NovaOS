@@ -25,6 +25,7 @@ import { wizardRoutes } from './setup/wizard.js';
 import { pluginRoutes } from './plugins.js';
 import { selfUpdateRoutes } from './system/selfupdate.js';
 import { pricesRoutes, startPricesLoop } from './prices/prices.js';
+import { newsRoutes, startNewsTrader } from './news/news.js';
 import { metricsRoutes } from './metrics/routes.js';
 import { storeRoutes } from './store/routes.js';
 import { systemRoutes } from './system/routes.js';
@@ -114,6 +115,7 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   await app.register(pluginRoutes);
   await app.register(selfUpdateRoutes);
   await app.register(pricesRoutes);
+  await app.register(newsRoutes);
   await app.register(credentialRoutes);
   await app.register(extractRoutes);
   await app.register(metricsRoutes);
@@ -153,6 +155,9 @@ export async function buildApp(opts: { logger?: boolean } = {}): Promise<Fastify
   // Prices (PC parts tracker): quotes every tracked listing twice a day.
   const stopPrices = startPricesLoop();
   app.addHook('onClose', async () => stopPrices());
+  // News Trader (paper): reads the feeds every 10 minutes, trades events the playbook backs.
+  const stopNews = startNewsTrader();
+  app.addHook('onClose', async () => stopNews());
   // Nightly backups to the Toshiba (backup/backup.ts).
   const stopBackups = startBackupLoop();
   app.addHook('onClose', async () => stopBackups());

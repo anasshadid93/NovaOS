@@ -10,6 +10,7 @@ export const SETTINGS_PAGES: { route: string; label: MessageKey; words?: string 
   { route: '/settings/network', label: 'settings.network', words: 'ip wifi ethernet' },
   { route: '/settings/tailscale', label: 'settings.tailscale', words: 'vpn tailnet devices' },
   { route: '/settings/firewall', label: 'settings.firewall', words: 'ports ufw' },
+  { route: '/news', label: 'section.news', words: 'news trader bot events gold oil bitcoin أخبار تداول' },
   { route: '/prices', label: 'section.prices', words: 'price tracker gpu ram ssd hdd amazon أسعار' },
   { route: '/settings/android', label: 'settings.android', words: 'apk phone tv install app أندرويد تطبيق' },
   { route: '/settings/integrations', label: 'settings.integrations', words: 'plugins telegram n8n whatsapp bot api تكاملات' },

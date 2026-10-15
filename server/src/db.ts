@@ -315,6 +315,40 @@ const MIGRATIONS: string[] = [
    );
    CREATE INDEX price_points_at ON price_points(product_id, at);`,
   `ALTER TABLE price_products ADD COLUMN image TEXT;`,
+  // News Trader: headlines seen, the events the model found in them, and what the market did after.
+  `CREATE TABLE news_items (
+     hash TEXT PRIMARY KEY,
+     feed TEXT NOT NULL,
+     lang TEXT NOT NULL,
+     title TEXT NOT NULL,
+     link TEXT,
+     published_at INTEGER NOT NULL,
+     seen_at INTEGER NOT NULL
+   );
+   CREATE INDEX news_items_pub ON news_items(published_at);
+   CREATE TABLE news_events (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     item_hash TEXT NOT NULL,
+     title TEXT NOT NULL,
+     type TEXT NOT NULL,
+     assets TEXT NOT NULL,
+     direction TEXT NOT NULL,
+     confidence REAL NOT NULL,
+     importance REAL NOT NULL,
+     horizon_days INTEGER NOT NULL,
+     why TEXT,
+     at INTEGER NOT NULL,
+     day TEXT NOT NULL,
+     outcome_at INTEGER
+   );
+   CREATE INDEX news_events_at ON news_events(at);
+   CREATE TABLE news_outcomes (
+     event_id INTEGER PRIMARY KEY,
+     day TEXT NOT NULL,
+     type TEXT NOT NULL,
+     note TEXT,
+     moves TEXT NOT NULL
+   );`,
 ];
 
 let db: DatabaseSync | null = null;
