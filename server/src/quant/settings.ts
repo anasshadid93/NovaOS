@@ -49,6 +49,21 @@ export interface QuantSettings {
   regime: { trailPct: number; cooldownDays: number };
   /** Let a decisive agents Sell veto/close trades (untested on history; off by default). */
   agentsVeto: boolean;
+  /** Futures (Binance USDⓈ-M perpetuals) paper book: regime on a short timeframe, both directions, leverage. */
+  futures: {
+    enabled: boolean;
+    assets: string[];
+    tf: '1h' | '4h';
+    leverage: number;
+    marginPct: number;
+    trailAtr: number;
+    allowShort: boolean;
+    cooldownBars: number;
+    startBalance: number;
+    emaFast: number;
+    emaSlow: number;
+    emaTrend: number;
+  };
   assets: string[];
   keys: { anthropic: string; openai: string };
   ollamaUrl: string;
@@ -93,6 +108,20 @@ export const DEFAULTS: QuantSettings = {
   strategy: 'regime',
   regime: { trailPct: 15, cooldownDays: 10 },
   agentsVeto: false,
+  futures: {
+    enabled: true,
+    assets: ['BTC', 'ETH', 'SOL'],
+    tf: '4h',
+    leverage: 2,
+    marginPct: 20,
+    trailAtr: 10,
+    allowShort: true,
+    cooldownBars: 6,
+    startBalance: 10_000,
+    emaFast: 20,
+    emaSlow: 50,
+    emaTrend: 200,
+  },
   assets: ['BTC', 'ETH', 'SOL', 'GOLD'],
   keys: { anthropic: '', openai: '' },
   ollamaUrl: 'http://127.0.0.1:11434',
@@ -157,6 +186,25 @@ export function normalize(raw: Partial<QuantSettings> | undefined, base: QuantSe
     strategy: r.strategy === 'rules' || r.strategy === 'regime' ? r.strategy : base.strategy,
     regime: { trailPct: clamp(rg.trailPct, 3, 40, base.regime.trailPct), cooldownDays: Math.round(clamp(rg.cooldownDays, 0, 60, base.regime.cooldownDays)) },
     agentsVeto: typeof r.agentsVeto === 'boolean' ? r.agentsVeto : base.agentsVeto,
+    futures: (() => {
+      const f = (r.futures ?? {}) as Partial<QuantSettings['futures']>;
+      const b = base.futures;
+      const fa = Array.isArray(f.assets) ? f.assets.filter((a): a is string => typeof a === 'string' && /^[A-Z]{2,10}$/.test(a)).slice(0, 8) : b.assets;
+      return {
+        enabled: typeof f.enabled === 'boolean' ? f.enabled : b.enabled,
+        assets: fa.length ? fa : b.assets,
+        tf: f.tf === '1h' || f.tf === '4h' ? f.tf : b.tf,
+        leverage: Math.round(clamp(f.leverage, 1, 10, b.leverage)),
+        marginPct: clamp(f.marginPct, 5, 50, b.marginPct),
+        trailAtr: clamp(f.trailAtr, 1, 20, b.trailAtr),
+        allowShort: typeof f.allowShort === 'boolean' ? f.allowShort : b.allowShort,
+        cooldownBars: Math.round(clamp(f.cooldownBars, 0, 48, b.cooldownBars)),
+        startBalance: clamp(f.startBalance, 100, 1e8, b.startBalance),
+        emaFast: Math.round(clamp(f.emaFast, 3, 100, b.emaFast)),
+        emaSlow: Math.round(clamp(f.emaSlow, 5, 300, b.emaSlow)),
+        emaTrend: Math.round(clamp(f.emaTrend, 20, 500, b.emaTrend)),
+      };
+    })(),
     assets: assets.length ? assets : base.assets,
     keys: { anthropic: typeof keys.anthropic === 'string' ? keys.anthropic.trim() : base.keys.anthropic, openai: typeof keys.openai === 'string' ? keys.openai.trim() : base.keys.openai },
     ollamaUrl: typeof r.ollamaUrl === 'string' && /^https?:\/\//.test(r.ollamaUrl) ? r.ollamaUrl.replace(/\/+$/, '') : base.ollamaUrl,
@@ -205,6 +253,7 @@ export function saveSettings(patch: Partial<QuantSettings>): QuantSettings {
     weights: { ...cur.weights, ...(patch.weights ?? {}) },
     risk: { ...cur.risk, ...(patch.risk ?? {}) },
     regime: { ...cur.regime, ...(patch.regime ?? {}) },
+    futures: { ...cur.futures, ...(patch.futures ?? {}) },
     live: { ...cur.live, ...(patch.live ?? {}) },
     updatedAt: Date.now(),
   };

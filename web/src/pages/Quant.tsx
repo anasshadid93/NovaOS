@@ -120,6 +120,7 @@ interface Risk {
   maxSourceGapPct: number;
 }
 interface Settings {
+  futures: FuturesData['settings'];
   strategy: 'regime' | 'rules';
   regime: { trailPct: number; cooldownDays: number };
   agentsVeto: boolean;
@@ -136,8 +137,37 @@ interface Settings {
   paperEnabled: boolean;
   live: { enabled: boolean; broker: string; authorizedAt: number | null; maxNotionalUsd: number; killSwitch: boolean };
 }
+interface FPos {
+  id: number;
+  asset: string;
+  qty: number;
+  entry: number;
+  opened_at: number;
+  stop: number;
+  high: number;
+  closed_at: number | null;
+  exit: number | null;
+  pnl: number | null;
+  reason: string | null;
+  detail: string | null;
+}
+interface FuturesData {
+  equity: number;
+  cash: number;
+  exposure: number;
+  unrealised: number;
+  realised: number;
+  open: FPos[];
+  closed: FPos[];
+  perf: Perf;
+  marks: Record<string, { mark: number; at: number; fundingRate: number; nextFunding: number; spotGapPct: number | null }>;
+  regimes: Record<string, { signal: 1 | -1 | 0; atr: number; emaFast: number; emaSlow: number; emaTrend: number; close: number; at: number }>;
+  lastError: string | null;
+  settings: { enabled: boolean; assets: string[]; tf: '1h' | '4h'; leverage: number; marginPct: number; trailAtr: number; allowShort: boolean; cooldownBars: number; startBalance: number };
+}
 interface Data {
   settings: Settings;
+  futures: FuturesData;
   markets: string[];
   quotes: Record<string, Quote>;
   merged: Merged[];
@@ -152,7 +182,7 @@ interface Data {
 
 const usd = (v: number) => `$${v.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 const px = (v: number) => (v >= 100 ? v.toLocaleString('en-US', { maximumFractionDigits: 2 }) : v.toPrecision(4));
-const TABS = ['overview', 'signals', 'agents', 'backtests', 'risk', 'audit'] as const;
+const TABS = ['overview', 'futures', 'signals', 'agents', 'backtests', 'risk', 'audit'] as const;
 type Tab = (typeof TABS)[number];
 const PHRASE = 'I AUTHORIZE LIVE TRADING WITH REAL FUNDS';
 
@@ -483,6 +513,219 @@ export function Quant() {
                 {book.closed.length === 0 && book.open.length === 0 && <li className="text-muted">{t('quant.h.fresh')}</li>}
               </ul>
             </Card>
+          </>
+        )}
+
+        {tab === 'futures' && (
+          <>
+            {(() => {
+              const F = d.futures;
+              const fret = ((F.equity - F.settings.startBalance) / F.settings.startBalance) * 100;
+              return (
+                <>
+                  <Card>
+                    <div className="flex items-start gap-3">
+                      <span className={`mt-1 size-3 shrink-0 rounded-full ${F.open.length ? 'bg-ok' : 'bg-primary'} animate-pulse`} aria-hidden />
+                      <div className="min-w-0">
+                        <p className="text-base font-semibold text-heading">{F.open.length ? t('quant.f.holding', { n: F.open.length }) : t('quant.f.watching')}</p>
+                        <p className="mt-0.5 text-sm text-muted">{t('quant.f.line', { tf: F.settings.tf, lev: F.settings.leverage })}</p>
+                      </div>
+                    </div>
+                  </Card>
+                  <Card>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div>
+                        <div className="text-[11px] text-muted">{t('quant.h.balance')}</div>
+                        <div className="text-lg font-semibold text-heading" dir="ltr">
+                          {usd(F.equity)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] text-muted">{t('quant.h.sinceStart')}</div>
+                        <div className={`text-lg font-semibold ${fret >= 0 ? 'text-ok' : 'text-danger'}`} dir="ltr">
+                          {fret >= 0 ? '+' : ''}
+                          {usd(F.equity - F.settings.startBalance)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] text-muted">{t('quant.f.margin')}</div>
+                        <div className="text-lg font-semibold text-heading" dir="ltr">
+                          {usd(F.exposure)}
+                        </div>
+                      </div>
+                    </div>
+                    {F.perf.curve.length > 2 && (
+                      <div className="mt-3">
+                        <Chart
+                          data={[F.perf.curve.map((p) => Math.round(p.at / 1000)), F.perf.curve.map((p) => p.equity)]}
+                          series={[{ label: 'USD', color: '#d97706' }]}
+                          height={120}
+                          fmt={(v) => usd(v)}
+                        />
+                      </div>
+                    )}
+                    <details className="mt-2 text-xs">
+                      <summary className="cursor-pointer text-muted">{t('quant.h.expert')}</summary>
+                      <div className="mt-2 grid grid-cols-4 gap-2">
+                        <Stat label={t('quant.trades')} value={String(F.perf.trades)} />
+                        <Stat label={t('quant.winRate')} value={`${(F.perf.winRate * 100).toFixed(0)}%`} />
+                        <Stat label={t('quant.profitFactor')} value={Number.isFinite(F.perf.profitFactor) ? F.perf.profitFactor.toFixed(2) : '∞'} />
+                        <Stat label={t('quant.drawdown')} value={`${F.perf.maxDrawdownPct.toFixed(1)}%`} />
+                      </div>
+                      {F.lastError && <p className="mt-1 text-danger">{F.lastError}</p>}
+                    </details>
+                  </Card>
+                  <Card title={t('quant.h.market')}>
+                    <p className="mb-2 text-xs text-muted">{t('quant.f.marketHint', { tf: F.settings.tf })}</p>
+                    <ul className="space-y-3">
+                      {F.settings.assets.map((a) => {
+                        const r = F.regimes[a];
+                        const m = F.marks[a];
+                        const pos = F.open.find((p) => p.asset === a);
+                        const pd = pos ? (JSON.parse(pos.detail ?? '{}') as { side: 1 | -1 }) : null;
+                        const level = pos ? (pd?.side === 1 ? 'long' : 'short') : !r ? 'wait' : r.signal === 1 ? 'bull' : r.signal === -1 ? 'bear' : 'flat';
+                        const tone = level === 'long' || level === 'bull' ? 'bg-ok' : level === 'short' || level === 'bear' ? 'bg-danger' : 'bg-muted';
+                        return (
+                          <li key={a}>
+                            <div className="flex items-center gap-2">
+                              <span className={`size-2.5 shrink-0 rounded-full ${tone}`} aria-hidden />
+                              <span className="w-12 font-semibold text-heading">{a}</span>
+                              <span className="flex-1 text-sm text-ink">{t(`quant.f.l.${level}` as MessageKey)}</span>
+                              <span className="text-xs text-muted" dir="ltr">
+                                {m ? px(m.mark) : '—'}
+                              </span>
+                            </div>
+                            {r && (
+                              <p className="ms-5 mt-0.5 text-xs text-muted" dir="ltr">
+                                {`EMA${F.settings.tf === '4h' ? '' : ''} ${r.emaFast > r.emaSlow ? '20 > 50' : '20 < 50'} · ${r.close > r.emaTrend ? t('quant.f.aboveTrend') : t('quant.f.belowTrend')}${m ? ` · ${t('quant.f.funding', { r: (m.fundingRate * 100).toFixed(3) })}` : ''}`}
+                              </p>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </Card>
+                  {F.open.length > 0 && (
+                    <Card title={t('quant.open')}>
+                      <ul className="space-y-3">
+                        {F.open.map((p) => {
+                          const pd = JSON.parse(p.detail ?? '{}') as { side: 1 | -1; leverage: number; margin: number; liq: number; fundingAcc: number; entryFee: number };
+                          const cur = F.marks[p.asset]?.mark ?? p.entry;
+                          const u = (cur - p.entry) * p.qty * pd.side - pd.fundingAcc - pd.entryFee;
+                          const lo = pd.side === 1 ? p.stop : p.high;
+                          const hi = pd.side === 1 ? p.high : p.stop;
+                          const pos = hi > lo ? Math.max(0, Math.min(1, (cur - lo) / (hi - lo))) : 0.5;
+                          return (
+                            <li key={p.id}>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-semibold text-heading">
+                                  {pd.side === 1 ? '🟢' : '🔴'} {p.asset} {pd.side === 1 ? t('quant.f.long') : t('quant.f.short')} {pd.leverage}x{' '}
+                                  <span className="text-xs font-normal text-muted">{formatRelative(p.opened_at)}</span>
+                                </span>
+                                <span className={`font-semibold ${u >= 0 ? 'text-ok' : 'text-danger'}`} dir="ltr">
+                                  {u >= 0 ? '+' : ''}
+                                  {usd(u)} ({((u / pd.margin) * 100).toFixed(1)}%)
+                                </span>
+                              </div>
+                              <div className="relative mt-2 h-2 rounded-full bg-gradient-to-r from-danger via-canvas to-ok" dir="ltr" aria-hidden>
+                                <span
+                                  className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface bg-heading"
+                                  style={{ left: `${(pd.side === 1 ? pos : 1 - pos) * 100}%` }}
+                                />
+                              </div>
+                              <div className="mt-1 flex justify-between text-[11px] text-muted" dir="ltr">
+                                <span>
+                                  {t('quant.f.stopAt')} {px(p.stop)} · {t('quant.f.liqAt')} {px(pd.liq)}
+                                </span>
+                                <button type="button" disabled={busy} className="text-primary-ink" onClick={() => void run(() => api(`/api/quant/futures/positions/${p.id}/close`, { body: {} }))}>
+                                  {t('quant.closeNow')}
+                                </button>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </Card>
+                  )}
+                  <Card title={t('quant.h.story')}>
+                    <ul className="space-y-1.5 text-sm">
+                      {F.closed.slice(0, 12).map((p) => {
+                        const pd = JSON.parse(p.detail ?? '{}') as { side: 1 | -1; margin: number };
+                        return (
+                          <li key={p.id} className="flex justify-between gap-2">
+                            <span className="text-ink">
+                              {pd.side === 1 ? t('quant.f.long') : t('quant.f.short')} {p.asset} · {t(`quant.f.r.${p.reason ?? 'flip'}` as MessageKey)} · {formatRelative(p.closed_at ?? 0)}
+                            </span>
+                            <span className={(p.pnl ?? 0) >= 0 ? 'text-ok' : 'text-danger'} dir="ltr">
+                              {(p.pnl ?? 0) >= 0 ? '+' : ''}
+                              {usd(p.pnl ?? 0)}
+                            </span>
+                          </li>
+                        );
+                      })}
+                      {F.closed.length === 0 && <li className="text-muted">{t('quant.f.fresh', { tf: F.settings.tf })}</li>}
+                    </ul>
+                  </Card>
+                  <Card title={t('quant.f.settings')}>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="block">
+                        <span className="mb-1 block text-sm font-medium text-ink">{t('quant.f.tf')}</span>
+                        <select
+                          value={form.futures.tf}
+                          onChange={(e) => setForm({ ...form, futures: { ...form.futures, tf: e.target.value as '1h' | '4h' } })}
+                          className="block min-h-12 w-full rounded-xl border border-line bg-surface px-3 text-base text-ink"
+                        >
+                          <option value="4h">4h ({t('quant.f.tested')})</option>
+                          <option value="1h">1h</option>
+                        </select>
+                      </label>
+                      <Num label={t('quant.f.leverage')} value={form.futures.leverage} onChange={(v) => setForm({ ...form, futures: { ...form.futures, leverage: v } })} />
+                      <Num label={t('quant.f.marginPct')} value={form.futures.marginPct} onChange={(v) => setForm({ ...form, futures: { ...form.futures, marginPct: v } })} />
+                      <Num label={t('quant.f.trailAtr')} value={form.futures.trailAtr} onChange={(v) => setForm({ ...form, futures: { ...form.futures, trailAtr: v } })} />
+                    </div>
+                    <div className="mt-2 space-y-2">
+                      <Toggle label={t('quant.f.enabled')} on={form.futures.enabled} onChange={(v) => setForm({ ...form, futures: { ...form.futures, enabled: v } })} />
+                      <Toggle label={t('quant.f.allowShort')} on={form.futures.allowShort} onChange={(v) => setForm({ ...form, futures: { ...form.futures, allowShort: v } })} />
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {d.markets
+                        .filter((a) => a !== 'GOLD')
+                        .map((a) => (
+                          <button
+                            key={a}
+                            type="button"
+                            className={chip(form.futures.assets.includes(a))}
+                            onClick={() =>
+                              setForm({ ...form, futures: { ...form.futures, assets: form.futures.assets.includes(a) ? form.futures.assets.filter((x) => x !== a) : [...form.futures.assets, a] } })
+                            }
+                          >
+                            {a}
+                          </button>
+                        ))}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button disabled={busy} onClick={() => void saveSettings({ futures: form.futures })}>
+                        {t('quant.save')}
+                      </Button>
+                      <Button variant="secondary" disabled={busy} onClick={() => void run(() => api('/api/quant/futures/backtest', { body: { start: bt.start, end: bt.end } }), t('quant.f.testDone'))}>
+                        {t('quant.f.test')}
+                      </Button>
+                      <Button
+                        variant="danger"
+                        disabled={busy}
+                        onClick={async () => {
+                          if (await ask({ title: t('quant.f.reset'), body: <p>{t('quant.resetPaperBody')}</p>, confirmLabel: t('quant.f.reset'), danger: true }))
+                            await run(() => api('/api/quant/futures/reset', { body: {} }));
+                        }}
+                      >
+                        {t('quant.f.reset')}
+                      </Button>
+                    </div>
+                    <p className="mt-2 text-xs text-muted">{t('quant.f.evidence')}</p>
+                  </Card>
+                </>
+              );
+            })()}
           </>
         )}
 

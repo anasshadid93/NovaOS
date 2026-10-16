@@ -152,3 +152,25 @@ stop-out. Net profit / max drawdown on the same data:
 `strategy: regime` in var/quant.json (default). The merged-score rules remain as `strategy: rules`.
 The AI debate and news mood are recorded as information; `agentsVeto` (off) lets a decisive Sell close
 trades, which history cannot test.
+
+## Futures book (2026-10-16)
+
+A second paper book trades Binance USDⓈ-M perpetuals both ways (`futures` in var/quant.json):
+regime on 4 h bars (close vs EMA200, EMA20 vs EMA50 → long / short / flat), trailing stop of
+`trailAtr` × ATR(14) from the best price, isolated leverage, funding every 8 h, taker fees,
+liquidation at ~90 % of margin. `server/src/quant/futures.ts` is the simulator; `futures-engine.ts`
+runs the same rules live (marks every minute from `/fapi/v1/premiumIndex`, cross-checked against
+spot; regime on each closed bar). `POST /api/quant/futures/backtest` runs the simulator in-process.
+
+Evidence, 2021-01→2025-12, BTC/ETH/SOL, $10k split equally (net / max drawdown):
+
+| config | total | 2021 | 2022 | 2023 | 2024 | 2025 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 15m, 1x, trail 10 ATR | −69% / 70% | | | | | |
+| 1h, 1x, trail 10 ATR | +11% / 17% | | | | | |
+| 4h, 1x, trail 6 ATR | +68% / 13.5% | | | | | |
+| 4h, 2x, trail 6 ATR | +135% / 28% | +50% | +11% | +28% | −7% | +8% |
+| **4h, 2x, trail 10 ATR (default)** | **+391% / 27%** | +123% | +13% | +42% | +4% | +10% |
+| 4h, 3x, trail 6 ATR | +210% / 41% | | | | | |
+
+Faster bars lose to fees and chop; leverage above 2x mostly adds drawdown.

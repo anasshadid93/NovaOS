@@ -6,6 +6,8 @@ import { closePosition, closedPositions, equity, latestSignals, merge, openPosit
 import { leanRoutes, leanStatus, startLean, stopLean } from './lean.js';
 import { liveRoutes, liveStatus, startLive, stopLive } from './live.js';
 import { MARKETS, quotes } from './market.js';
+import { closeFuturesManual, closedFutures, futuresData, futuresEquity, futuresState, futuresStep, openFutures } from './futures-engine.js';
+import { DEFAULT_FPARAMS, simulatePortfolio, type FParams } from './futures.js';
 import { getSettings, publicSettings, saveSettings, type QuantSettings } from './settings.js';
 
 /**
@@ -56,6 +58,10 @@ export function startQuant(): () => void {
   );
   timers.push(setTimeout(engine, 45_000));
   timers.push(setInterval(engine, 60_000));
+  // Futures paper book: marks/stops every minute, regime on each closed bar.
+  const fut = safe(() => (getSettings().futures.enabled ? futuresStep() : undefined));
+  timers.push(setTimeout(fut, 30_000));
+  timers.push(setInterval(fut, 60_000));
   if (agentsInstalled()) {
     void agentsTick();
     timers.push(setInterval(safe(agentsTick), 15_000));
@@ -91,6 +97,7 @@ export async function quantRoutes(app: FastifyInstance) {
       paper: { ...paper, open: openPositions('paper'), closed: closedPositions('paper', 100), perf: performance('paper', s.risk.startBalance) },
       live: { ...equity('live', s.risk.startBalance, q), open: openPositions('live'), closed: closedPositions('live', 100), perf: performance('live', s.risk.startBalance), status: liveStatus() },
       agents: { installed: agentsInstalled(), alive: agentsAlive(), error: agentsError(), route: routeModels(s), runs: listRuns(30) },
+      futures: { ...futuresEquity(), open: openFutures(), closed: closedFutures(100), perf: performance('futures', s.futures.startBalance), ...futuresState(), settings: s.futures },
       lean: leanStatus(),
       lastStep: lastStep ? { at: lastStepAt, opened: lastStep.opened, closed: lastStep.closed, skipped: lastStep.skipped } : null,
       lastError: lastErr,
@@ -166,6 +173,81 @@ export async function quantRoutes(app: FastifyInstance) {
     db.exec('COMMIT');
     audit(req.session!.userId, 'quant_paper_reset');
     return { ok: true };
+  });
+
+  app.post<{ Params: { id: string } }>('/api/quant/futures/positions/:id/close', { preHandler: requireElevated }, async (req, reply) => {
+    try {
+      const pnl = await closeFuturesManual(Number(req.params.id), req.session!.userId);
+      return pnl === null ? reply.code(404).send({ error: 'not_found' }) : { pnl };
+    } catch (e) {
+      return reply.code(503).send({ error: (e as Error).message });
+    }
+  });
+  app.post('/api/quant/futures/reset', { preHandler: requireElevated }, async (req) => {
+    const db = getDb();
+    db.exec('BEGIN');
+    db.prepare("DELETE FROM quant_positions WHERE mode = 'futures'").run();
+    db.prepare("DELETE FROM quant_orders WHERE mode = 'futures'").run();
+    db.prepare("DELETE FROM quant_equity WHERE mode = 'futures'").run();
+    db.exec('COMMIT');
+    audit(req.session!.userId, 'quant_futures_reset');
+    return { ok: true };
+  });
+  /** In-process futures simulation (seconds, not Docker): same code as the live paper book. */
+  app.post<{ Body: { start?: string; end?: string; params?: Partial<FParams>; assets?: string[] } }>('/api/quant/futures/backtest', { preHandler: requireAuth }, async (req, reply) => {
+    const b = req.body ?? {};
+    const start = Date.parse(String(b.start ?? '2021-01-01'));
+    const end = Date.parse(String(b.end ?? new Date().toISOString().slice(0, 10)));
+    if (!start || !end || start >= end) return reply.code(400).send({ error: 'bad_range' });
+    const f = getSettings().futures;
+    const p: FParams = {
+      ...DEFAULT_FPARAMS,
+      tf: f.tf,
+      emaFast: f.emaFast,
+      emaSlow: f.emaSlow,
+      emaTrend: f.emaTrend,
+      trailAtr: f.trailAtr,
+      leverage: f.leverage,
+      marginPct: f.marginPct,
+      allowShort: f.allowShort,
+      cooldownBars: f.cooldownBars,
+      ...(b.params ?? {}),
+    };
+    const id = Number(
+      getDb()
+        .prepare("INSERT INTO quant_lean_runs(kind, created_at, status, params) VALUES('futures', ?, 'running', ?)")
+        .run(Date.now(), JSON.stringify({ start: b.start, end: b.end, ...p })).lastInsertRowid,
+    );
+    try {
+      const data = await futuresData(
+        (b.assets ?? f.assets).filter((a) => MARKETS[a]),
+        p.tf as '1h' | '4h',
+        start,
+        end,
+      );
+      const r = simulatePortfolio(data, p, f.startBalance);
+      const stats = {
+        'Net Profit': `${r.netPct.toFixed(2)}%`,
+        Drawdown: `${r.maxDdPct.toFixed(1)}%`,
+        'Win Rate': `${(r.winRate * 100).toFixed(0)}%`,
+        orders: r.trades,
+        liquidations: r.liquidations,
+        tradesPerDay: +r.tradesPerDay.toFixed(2),
+        fees: Math.round(r.feesPaid),
+        funding: Math.round(r.fundingPaid),
+        perSymbol: r.perSymbol,
+      };
+      getDb()
+        .prepare("UPDATE quant_lean_runs SET status = 'done', finished_at = ?, stats = ?, equity = ?, log = 'in-process simulation' WHERE id = ?")
+        .run(Date.now(), JSON.stringify(stats), JSON.stringify(r.curve), id);
+      audit(req.session!.userId, 'quant_futures_backtest', { id, start: b.start, end: b.end, tf: p.tf, leverage: p.leverage });
+      return { id, ...stats };
+    } catch (e) {
+      getDb()
+        .prepare("UPDATE quant_lean_runs SET status = 'error', finished_at = ?, log = ? WHERE id = ?")
+        .run(Date.now(), String((e as Error).message).slice(0, 2000), id);
+      return reply.code(500).send({ error: (e as Error).message });
+    }
   });
 
   app.get<{ Querystring: { limit?: string } }>('/api/quant/audit', { preHandler: requireAuth }, async (req) => {

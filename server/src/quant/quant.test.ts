@@ -11,6 +11,7 @@ import type { Bar } from './market.js';
 const { merge, publishSignal, step, openPositions, closePosition, equity, latestSignals } = await import('./engine.js');
 const { routeModels } = await import('./agents.js');
 const { getDb } = await import('../db.js');
+const { simulate, liquidationPrice } = await import('./futures.js');
 
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
@@ -193,5 +194,66 @@ describe('regime strategy', () => {
     expect(r.closed[0]?.reason).toBe('stop');
     expect(r.closed[0].pnl).toBeGreaterThan(0);
     vi.unstubAllGlobals();
+  });
+});
+
+describe('futures simulator', () => {
+  const mk = (n: number, f: (i: number) => number) => Array.from({ length: n }, (_, i) => ({ t: i * 3600_000, o: f(i), h: f(i) * 1.004, l: f(i) * 0.996, c: f(i), v: 1 }));
+  it('goes long in an uptrend and short in a downtrend, both profitable', () => {
+    const up = simulate(
+      mk(600, (i) => 100 * Math.exp(0.002 * i)),
+      [],
+      { tf: '1h', emaFast: 20, emaSlow: 50, emaTrend: 200, trailAtr: 10, leverage: 2, marginPct: 20, allowShort: true, cooldownBars: 0, takerFee: 0.0005, slippage: 0.0003 },
+    );
+    expect(up.trades).toBeGreaterThan(0);
+    expect(up.netPct).toBeGreaterThan(0);
+    expect(up.tradesList.every((t) => t.side === 1)).toBe(true);
+    const down = simulate(
+      mk(600, (i) => 100 * Math.exp(-0.002 * i)),
+      [],
+      { tf: '1h', emaFast: 20, emaSlow: 50, emaTrend: 200, trailAtr: 10, leverage: 2, marginPct: 20, allowShort: true, cooldownBars: 0, takerFee: 0.0005, slippage: 0.0003 },
+    );
+    expect(down.netPct).toBeGreaterThan(0);
+    expect(down.tradesList.every((t) => t.side === -1)).toBe(true);
+  });
+  it('liquidates a leveraged long on a crash and never loses more than the margin', () => {
+    const bars = mk(600, (i) => (i < 400 ? 100 * Math.exp(0.002 * i) : 100 * Math.exp(0.002 * 400) * (i === 400 ? 0.5 : 0.5)));
+    const r = simulate(bars, [], {
+      tf: '1h',
+      emaFast: 20,
+      emaSlow: 50,
+      emaTrend: 200,
+      trailAtr: 10,
+      leverage: 5,
+      marginPct: 20,
+      allowShort: false,
+      cooldownBars: 0,
+      takerFee: 0.0005,
+      slippage: 0.0003,
+    });
+    expect(r.liquidations).toBeGreaterThanOrEqual(1);
+    const liq = r.tradesList.find((t) => t.reason === 'liq')!;
+    expect(liq.pnl).toBeGreaterThanOrEqual(-(0.2 * 10_000) - 1);
+    expect(liquidationPrice(1, 100, 5)).toBeCloseTo(82, 0);
+  });
+  it('charges funding to the side that pays', () => {
+    const bars = mk(400, (i) => 100 * Math.exp(0.002 * i));
+    const funding: [number, number][] = bars.filter((_, i) => i % 8 === 0).map((b) => [b.t, 0.001]);
+    const noF = simulate(bars, [], { tf: '1h', emaFast: 20, emaSlow: 50, emaTrend: 200, trailAtr: 10, leverage: 1, marginPct: 20, allowShort: false, cooldownBars: 0, takerFee: 0, slippage: 0 });
+    const withF = simulate(bars, funding, {
+      tf: '1h',
+      emaFast: 20,
+      emaSlow: 50,
+      emaTrend: 200,
+      trailAtr: 10,
+      leverage: 1,
+      marginPct: 20,
+      allowShort: false,
+      cooldownBars: 0,
+      takerFee: 0,
+      slippage: 0,
+    });
+    expect(withF.fundingPaid).toBeGreaterThan(0);
+    expect(withF.netPct).toBeLessThan(noF.netPct);
   });
 });

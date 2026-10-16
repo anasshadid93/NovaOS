@@ -13,7 +13,7 @@ import { getSettings, type QuantSettings, type RiskLimits } from './settings.js'
  * is unexpired. Sources: 'technical' (rules, computed here), 'agents' (TradingAgents debate),
  * 'news' (News Trader market mood). Confidence scales each contribution.
  */
-export type Mode = 'paper' | 'live';
+export type Mode = 'paper' | 'live' | 'futures';
 export interface Signal {
   id: number;
   at: number;

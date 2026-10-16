@@ -23,7 +23,7 @@ export const leanInstalled = () => fs.existsSync(leanBin()) && fs.existsSync(pat
 
 export interface LeanRun {
   id: number;
-  kind: 'backtest' | 'walkforward' | 'data';
+  kind: 'backtest' | 'walkforward' | 'data' | 'futures';
   created_at: number;
   finished_at: number | null;
   status: 'queued' | 'running' | 'done' | 'error';
