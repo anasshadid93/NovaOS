@@ -392,7 +392,15 @@ export function Quant() {
                         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-canvas" dir="ltr" aria-hidden>
                           <div className={`h-1.5 rounded-full ${tone}`} style={{ width: `${Math.round(progress * 100)}%` }} />
                         </div>
-                        <span className="w-20 text-end text-[11px] text-muted">{t('quant.h.toBuy', { p: Math.round(progress * 100) })}</span>
+                        <span className="w-24 text-end text-[11px] text-muted">
+                          {regime
+                            ? held || td.bull
+                              ? ''
+                              : q && td.sma200 && q.price <= td.sma200
+                                ? t('quant.h.belowAvg', { p: Math.round((1 - q.price / td.sma200) * 100) })
+                                : t('quant.h.weakShort')
+                            : t('quant.h.toBuy', { p: Math.round(progress * 100) })}
+                        </span>
                       </div>
                       <p className="ms-5 mt-0.5 text-xs text-muted">{reasons.join(' · ')}</p>
                     </li>
@@ -409,7 +417,7 @@ export function Quant() {
                     const cur = d.quotes[p.asset]?.price ?? p.entry;
                     const u = (cur - p.entry) * p.qty;
                     const lo = p.stop;
-                    const hi = p.target ?? p.entry * 1.1;
+                    const hi = p.target ?? Math.max(p.high * 1.05, p.entry * 1.1);
                     const pos = Math.max(0, Math.min(1, (cur - lo) / (hi - lo)));
                     return (
                       <li key={p.id}>
@@ -432,9 +440,7 @@ export function Quant() {
                           <button type="button" disabled={busy} className="text-primary-ink" onClick={() => void run(() => api(`/api/quant/positions/${p.id}/close`, { body: {} }))}>
                             {t('quant.closeNow')}
                           </button>
-                          <span>
-                            {t('quant.h.targetAt')} {px(hi)}
-                          </span>
+                          <span>{p.target ? `${t('quant.h.targetAt')} ${px(hi)}` : t('quant.h.trailing', { pct: d.settings.regime.trailPct })}</span>
                         </div>
                       </li>
                     );

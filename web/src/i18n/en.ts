@@ -1749,6 +1749,10 @@ export const en = {
   'quant.why.bear': "bear market",
   'quant.why.no_signal': "no daily data yet",
   'quant.why.regime': "regime turned",
+  'quant.h.belowAvg': "{p}% below the 200-day avg",
+  'quant.h.weakShort': "short-term weak",
+  'quant.h.trailing': "exit follows the high ({pct}% below it)",
+  'quant.h.noTradeWhyRegime': "The bot checks every minute: it holds an asset while its market is bullish and sells when the trend turns or the price drops from its high.",
 } as const;
 
 export type MessageKey = keyof typeof en;

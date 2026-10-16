@@ -1831,4 +1831,8 @@ export const ar: Record<MessageKey, string> & Record<string, string> = {
   'quant.why.bear': "سوق هابط",
   'quant.why.no_signal': "لا بيانات يومية بعد",
   'quant.why.regime': "انقلب الاتجاه",
+  'quant.h.belowAvg': "تحت متوسط 200 يوم بـ {p}%",
+  'quant.h.weakShort': "ضعيف قصير المدى",
+  'quant.h.trailing': "الخروج يتبع القمة ({pct}% تحتها)",
+  'quant.h.noTradeWhyRegime': "البوت يفحص كل دقيقة: يحتفظ بالأصل ما دام سوقه صاعداً ويبيع لما ينقلب الاتجاه أو ينزل السعر عن قمته.",
 };
