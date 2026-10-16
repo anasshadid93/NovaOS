@@ -101,3 +101,23 @@ sudo deploy/install.sh    # installs novaos-agents.service when the folder is co
 `POST /api/quant/lean/backtest|walkforward|data`, `GET /api/quant/lean/runs/:id`,
 `POST /api/quant/live/keys`, `DELETE /api/quant/live/keys/:broker`, `POST /api/quant/live/authorize`,
 `POST /api/quant/live/stop`.
+
+## Strategy comparison (2026-10-16)
+
+`deploy/quant/lean-library` holds eight classic strategies built from LEAN's indicators (equal weight,
+long-only, no stops) run on the same data (BTC/ETH/SOL/PAXG daily, Binance). Net profit / max drawdown:
+
+| strategy | 2021→2025 | 2022 (bear) | 2024-07→2025-12 |
+| --- | --- | --- | --- |
+| Buy & hold | +393% / 89% | −54% / 56% | +24% / 33% |
+| EMA 20/50 cross | +722% / 50% | −29% / 37% | +17% / 15% |
+| Golden cross 50/200 | +505% / 57% | −19% / 23% | +9% / 21% |
+| Donchian 20/10 (turtle) | +441% / 43% | −27% / 35% | +10% / 14% |
+| MACD | +357% / 43% | −36% / 37% | −11% / 30% |
+| RSI mean reversion | −15% / 42% | −28% / 42% | −1% / 25% |
+| Bollinger | +38% / 49% | −46% / 48% | +22% / 16% |
+| Momentum rotation | +402% / 49% | −18% / 28% | −10% / 32% |
+| **NovaOS rules (risk-managed)** | +197% / 17% | −10% / 14% | +21% / 6.8% |
+
+The classic strategies ride bull markets harder but give back a third to half of the account in
+drawdowns; the NovaOS rules make less in 2021 and keep drawdowns under 20 %.
