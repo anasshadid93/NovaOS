@@ -70,6 +70,7 @@ describe('market', () => {
 });
 
 describe('engine', () => {
+  saveSettings({ strategy: 'rules' });
   const s = getSettings();
   it('merges weighted signals and lets a decisive agent Sell veto', () => {
     publishSignal('technical', 'BTC', 0.8, 0.8, 240, 3600_000, { atrPct: 3 }, 'BTC:t1');
@@ -158,6 +159,39 @@ describe('engine', () => {
     const b = await closePosition('paper', p, 101, 'manual', `${p.id}:manual:x`);
     expect(a).not.toBeNull();
     expect(b).toBeNull();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('regime strategy', () => {
+  it('buys 1/N in a bull regime, stays out in a bear one, and trails the stop from the high', async () => {
+    let px = 100;
+    vi.stubGlobal('fetch', async (url: string) => {
+      const u = String(url);
+      if (u.includes('/api/v3/ticker/price')) return new Response(JSON.stringify([{ symbol: 'ETHUSDT', price: String(px) }]));
+      if (u.includes('/0/public/Ticker')) return new Response(JSON.stringify({ error: [], result: { ETHUSDT: { c: [String(px), '1'] } } }));
+      return new Response('{}', { status: 404 });
+    });
+    getDb().exec('DELETE FROM quant_positions; DELETE FROM quant_orders; DELETE FROM quant_signals');
+    saveSettings({ strategy: 'regime', assets: ['ETH'], regime: { trailPct: 15, cooldownDays: 0 }, risk: { startBalance: 10_000, cooldownMin: 0, maxExposurePct: 100 } });
+    publishSignal('technical', 'ETH', 0.1, 0.8, 240, 3600_000, { bull: false, sma200: 120, ema20: 95, ema50: 100 }, 'ETH:r1');
+    const bear = (await step('paper'))!;
+    expect(bear.opened).toHaveLength(0);
+    expect(bear.skipped.some((x) => x.why === 'bear')).toBe(true);
+    publishSignal('technical', 'ETH', 0.1, 0.8, 240, 3600_000, { bull: true, sma200: 90, ema20: 101, ema50: 100 }, 'ETH:r2');
+    const bull = (await step('paper'))!;
+    expect(bull.opened).toHaveLength(1);
+    const p = openPositions('paper')[0];
+    expect(p.qty * p.entry).toBeCloseTo(9700, -1);
+    expect(p.stop).toBeCloseTo(p.entry * 0.85, 1);
+    px = 130;
+    await step('paper');
+    const p2 = openPositions('paper')[0];
+    expect(p2.stop).toBeCloseTo(130 * 0.85, 1);
+    px = 110; // 15 % under the 130 high → trailing stop
+    const r = (await step('paper'))!;
+    expect(r.closed[0]?.reason).toBe('stop');
+    expect(r.closed[0].pnl).toBeGreaterThan(0);
     vi.unstubAllGlobals();
   });
 });

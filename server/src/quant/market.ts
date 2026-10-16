@@ -156,7 +156,7 @@ export function rsi(closes: number[], n = 14): number {
 export interface Technical {
   score: number;
   atrPct: number;
-  detail: { trend: number; breakout: number; momentum: number; rsi: number; ema50: number; ema200: number; donchianHigh: number; donchianLow: number };
+  detail: { trend: number; breakout: number; momentum: number; rsi: number; ema20: number; ema50: number; ema200: number; sma200: number; bull: boolean; donchianHigh: number; donchianLow: number };
 }
 
 /**
@@ -168,7 +168,9 @@ export function technical(bars: Bar[]): Technical | null {
   if (bars.length < 60) return null;
   const closes = bars.map((b) => b.c);
   const c = closes[closes.length - 1];
+  const e20 = ema(closes, 20).at(-1)!;
   const e50 = ema(closes, 50).at(-1)!;
+  const s200 = closes.slice(-200).reduce((a, b) => a + b, 0) / Math.min(200, closes.length);
   const e200 = ema(closes, Math.min(200, closes.length - 1)).at(-1)!;
   const win = bars.slice(-55);
   const hi = Math.max(...win.map((b) => b.h));
@@ -185,6 +187,18 @@ export function technical(bars: Bar[]): Technical | null {
   return {
     score: Math.round(score * 1000) / 1000,
     atrPct: (a / c) * 100,
-    detail: { trend, breakout: Math.round(breakout * 100) / 100, momentum: Math.round(mom * 100) / 100, rsi: Math.round(r), ema50: e50, ema200: e200, donchianHigh: hi, donchianLow: lo },
+    detail: {
+      trend,
+      breakout: Math.round(breakout * 100) / 100,
+      momentum: Math.round(mom * 100) / 100,
+      rsi: Math.round(r),
+      ema20: e20,
+      ema50: e50,
+      ema200: e200,
+      sma200: s200,
+      bull: c > s200 && e20 > e50,
+      donchianHigh: hi,
+      donchianLow: lo,
+    },
   };
 }

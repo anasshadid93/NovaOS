@@ -120,6 +120,9 @@ interface Risk {
   maxSourceGapPct: number;
 }
 interface Settings {
+  strategy: 'regime' | 'rules';
+  regime: { trailPct: number; cooldownDays: number };
+  agentsVeto: boolean;
   assets: string[];
   keys: { anthropic: boolean; openai: boolean };
   ollamaUrl: string;
@@ -322,20 +325,56 @@ export function Quant() {
 
             {/* 3. Each asset in one line of words: mood, how close to a buy, and why. */}
             <Card title={t('quant.h.market')}>
-              <p className="mb-2 text-xs text-muted">{t('quant.h.marketHint')}</p>
+              <p className="mb-2 text-xs text-muted">{d.settings.strategy === 'regime' ? t('quant.h.marketHintRegime') : t('quant.h.marketHint')}</p>
               <ul className="space-y-3">
                 {d.merged.map((m) => {
                   const q = d.quotes[m.asset];
                   const R = d.settings.risk;
                   const held = book.open.some((p) => p.asset === m.asset);
-                  const level = held ? 'held' : m.vetoed ? 'veto' : m.score >= R.entryScore ? 'buy' : m.score >= R.entryScore * 0.6 ? 'close' : m.score > R.exitScore ? 'neutral' : 'down';
+                  const techSig = d.signals.find((x) => x.asset === m.asset && x.source === 'technical');
+                  const td = (techSig?.detail ? JSON.parse(techSig.detail) : {}) as { bull?: boolean; sma200?: number; ema20?: number; ema50?: number };
+                  const regime = d.settings.strategy === 'regime';
+                  const veto = d.settings.agentsVeto && m.vetoed;
+                  const level = held
+                    ? 'held'
+                    : veto
+                      ? 'veto'
+                      : regime
+                        ? td.bull
+                          ? 'buy'
+                          : q && td.sma200 && q.price > td.sma200
+                            ? 'close'
+                            : 'down'
+                        : m.score >= R.entryScore
+                          ? 'buy'
+                          : m.score >= R.entryScore * 0.6
+                            ? 'close'
+                            : m.score > R.exitScore
+                              ? 'neutral'
+                              : 'down';
                   const tone = level === 'buy' || level === 'held' ? 'bg-ok' : level === 'close' ? 'bg-warn' : level === 'neutral' ? 'bg-muted' : 'bg-danger';
-                  const progress = Math.max(0, Math.min(1, (m.score - R.exitScore) / (R.entryScore - R.exitScore)));
+                  const progress = regime
+                    ? td.bull
+                      ? 1
+                      : q && td.sma200 && td.ema20 && td.ema50
+                        ? Math.max(0, Math.min(1, 0.5 * Math.min(1, q.price / td.sma200) + 0.5 * Math.min(1, td.ema20 / td.ema50)))
+                        : 0
+                    : Math.max(0, Math.min(1, (m.score - R.exitScore) / (R.entryScore - R.exitScore)));
                   const tech = m.parts.technical?.score ?? 0;
                   const ag = m.parts.agents;
                   const nw = m.parts.news;
                   const reasons = [
-                    tech > 0.2 ? t('quant.h.techUp') : tech < -0.2 ? t('quant.h.techDown') : t('quant.h.techFlat'),
+                    regime
+                      ? td.bull
+                        ? t('quant.h.regimeBull')
+                        : q && td.sma200 && q.price > td.sma200
+                          ? t('quant.h.regimeHalf')
+                          : t('quant.h.regimeBear')
+                      : tech > 0.2
+                        ? t('quant.h.techUp')
+                        : tech < -0.2
+                          ? t('quant.h.techDown')
+                          : t('quant.h.techFlat'),
                     ag ? (ag.score > 0.2 ? t('quant.h.aiBuy') : ag.score < -0.2 ? t('quant.h.aiSell') : t('quant.h.aiWait')) : null,
                     nw ? (nw.score > 0.15 ? t('quant.h.newsGood') : nw.score < -0.15 ? t('quant.h.newsBad') : t('quant.h.newsQuiet')) : null,
                   ].filter(Boolean);
@@ -683,6 +722,24 @@ export function Quant() {
                 <Num label={t('quant.r.entryScore')} value={form.risk.entryScore} step={0.05} onChange={(v) => setForm({ ...form, risk: { ...form.risk, entryScore: v } })} />
                 <Num label={t('quant.r.exitScore')} value={form.risk.exitScore} step={0.05} onChange={(v) => setForm({ ...form, risk: { ...form.risk, exitScore: v } })} />
                 <Num label={t('quant.r.maxSourceGapPct')} value={form.risk.maxSourceGapPct} step={0.5} onChange={(v) => setForm({ ...form, risk: { ...form.risk, maxSourceGapPct: v } })} />
+              </div>
+              <h3 className="mt-3 text-sm font-medium text-ink">{t('quant.strategy')}</h3>
+              <div className="flex flex-wrap gap-2">
+                {(['regime', 'rules'] as const).map((k) => (
+                  <button key={k} type="button" className={chip(form.strategy === k)} onClick={() => setForm({ ...form, strategy: k })}>
+                    {t(`quant.strategy.${k}` as MessageKey)}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-muted">{t(`quant.strategy.${form.strategy}.desc` as MessageKey)}</p>
+              {form.strategy === 'regime' && (
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <Num label={t('quant.regime.trailPct')} value={form.regime.trailPct} onChange={(v) => setForm({ ...form, regime: { ...form.regime, trailPct: v } })} />
+                  <Num label={t('quant.regime.cooldownDays')} value={form.regime.cooldownDays} onChange={(v) => setForm({ ...form, regime: { ...form.regime, cooldownDays: v } })} />
+                </div>
+              )}
+              <div className="mt-2">
+                <Toggle label={t('quant.agentsVeto')} on={form.agentsVeto} onChange={(v) => setForm({ ...form, agentsVeto: v })} />
               </div>
               <h3 className="mt-3 text-sm font-medium text-ink">{t('quant.weights')}</h3>
               <div className="grid grid-cols-3 gap-2">

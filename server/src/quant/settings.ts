@@ -44,6 +44,11 @@ export interface RiskLimits {
   maxSourceGapPct: number;
 }
 export interface QuantSettings {
+  /** 'regime': long while price > SMA200 and EMA20 > EMA50, 15 % trailing stop (best in LEAN tests). 'rules': merged-score engine. */
+  strategy: 'regime' | 'rules';
+  regime: { trailPct: number; cooldownDays: number };
+  /** Let a decisive agents Sell veto/close trades (untested on history; off by default). */
+  agentsVeto: boolean;
   assets: string[];
   keys: { anthropic: string; openai: string };
   ollamaUrl: string;
@@ -85,6 +90,9 @@ export const DEFAULT_RISK: RiskLimits = {
 };
 
 export const DEFAULTS: QuantSettings = {
+  strategy: 'regime',
+  regime: { trailPct: 15, cooldownDays: 10 },
+  agentsVeto: false,
   assets: ['BTC', 'ETH', 'SOL', 'GOLD'],
   keys: { anthropic: '', openai: '' },
   ollamaUrl: 'http://127.0.0.1:11434',
@@ -144,7 +152,11 @@ export function normalize(raw: Partial<QuantSettings> | undefined, base: QuantSe
   const keys = (r.keys ?? {}) as Partial<QuantSettings['keys']>;
   const routing = (r.routing ?? {}) as Partial<QuantSettings['routing']>;
   const assets = Array.isArray(r.assets) ? r.assets.filter((a): a is string => typeof a === 'string' && /^[A-Z]{2,10}$/.test(a)).slice(0, 12) : base.assets;
+  const rg = (r.regime ?? {}) as Partial<QuantSettings['regime']>;
   return {
+    strategy: r.strategy === 'rules' || r.strategy === 'regime' ? r.strategy : base.strategy,
+    regime: { trailPct: clamp(rg.trailPct, 3, 40, base.regime.trailPct), cooldownDays: Math.round(clamp(rg.cooldownDays, 0, 60, base.regime.cooldownDays)) },
+    agentsVeto: typeof r.agentsVeto === 'boolean' ? r.agentsVeto : base.agentsVeto,
     assets: assets.length ? assets : base.assets,
     keys: { anthropic: typeof keys.anthropic === 'string' ? keys.anthropic.trim() : base.keys.anthropic, openai: typeof keys.openai === 'string' ? keys.openai.trim() : base.keys.openai },
     ollamaUrl: typeof r.ollamaUrl === 'string' && /^https?:\/\//.test(r.ollamaUrl) ? r.ollamaUrl.replace(/\/+$/, '') : base.ollamaUrl,
@@ -192,6 +204,7 @@ export function saveSettings(patch: Partial<QuantSettings>): QuantSettings {
     routing: { ...cur.routing, ...(patch.routing ?? {}) },
     weights: { ...cur.weights, ...(patch.weights ?? {}) },
     risk: { ...cur.risk, ...(patch.risk ?? {}) },
+    regime: { ...cur.regime, ...(patch.regime ?? {}) },
     live: { ...cur.live, ...(patch.live ?? {}) },
     updatedAt: Date.now(),
   };

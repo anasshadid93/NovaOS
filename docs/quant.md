@@ -133,3 +133,22 @@ drawdowns; the NovaOS rules make less in 2021 and keep drawdowns under 20 %.
 Shorting helps only in 2022 and costs more everywhere else; the EMA leg adds nothing the technical
 score does not already contain. Both stay available as parameters (`allowShort`, `wEma`) in the LEAN
 project, off by default.
+
+### Regime strategy (2026-10-16) — now the default
+
+Tested in the library as `regime_trail`: long 1/N of equity while close > SMA200 **and** EMA20 > EMA50,
+exit on a 15 % trailing stop from the highest close or when the regime turns, 10-day cooldown after a
+stop-out. Net profit / max drawdown on the same data:
+
+| period | regime strategy | NovaOS merged-score rules |
+| --- | --- | --- |
+| 2021→2025 | +660% / 29% (Sharpe 1.77) | +197% / 17% |
+| 2021 | +274% / 17% | — |
+| 2022 (bear) | −1.3% / 4.3% | −10% / 14% |
+| 2023 | +54% / 21% | — |
+| 2024-01→06 | −1.4% / 26% | — |
+| 2024-07→2025-12 | +27% / 13% | +21% / 6.8% |
+
+`strategy: regime` in var/quant.json (default). The merged-score rules remain as `strategy: rules`.
+The AI debate and news mood are recorded as information; `agentsVeto` (off) lets a decisive Sell close
+trades, which history cannot test.

@@ -102,6 +102,9 @@ function paramArgs(p: BacktestParams): string[] {
     wTechnical: W.technical,
     wAgents: W.agents,
     wNews: W.news,
+    strategy: s.strategy,
+    trailPct: s.regime.trailPct,
+    cooldownDays: s.regime.cooldownDays,
   };
   return Object.entries(kv).flatMap(([k, v]) => ['--parameter', k, String(v)]);
 }

@@ -1734,6 +1734,21 @@ export const en = {
   'quant.h.pausedLoss': "Paused for today: the daily loss limit was reached.",
   'quant.h.pausedOff': "Paper trading is switched off in Settings.",
   'quant.h.fresh': "No trades yet. The first one appears when a green signal shows up.",
+  'quant.strategy': "Strategy",
+  'quant.strategy.regime': "Bull/bear regime (recommended)",
+  'quant.strategy.rules': "Merged score",
+  'quant.strategy.regime.desc': "Buy an asset while its price is above the 200-day average and the 20-day EMA is above the 50-day; exit on a trailing stop from the high or when that turns. Best of 12 strategies in the LEAN tests (2021–2025: +660%, max drawdown 29%; 2022: −1%).",
+  'quant.strategy.rules.desc': "Trend + breakout + momentum score merged with the AI debate and news mood; ATR stop, R target. Steadier but earns less (2021–2025: +197%, drawdown 17%).",
+  'quant.regime.trailPct': "Trailing stop from the high (%)",
+  'quant.regime.cooldownDays': "Cooldown after a stop-out (days)",
+  'quant.agentsVeto': "Let an AI 'Sell' close trades (untested)",
+  'quant.h.marketHintRegime': "Green = bull market, we buy · yellow = above the 200-day average but short-term weak · red = bear market, we stay in cash.",
+  'quant.h.regimeBull': "bull market",
+  'quant.h.regimeHalf': "long-term up, short-term weak",
+  'quant.h.regimeBear': "bear market",
+  'quant.why.bear': "bear market",
+  'quant.why.no_signal': "no daily data yet",
+  'quant.why.regime': "regime turned",
 } as const;
 
 export type MessageKey = keyof typeof en;

@@ -73,13 +73,17 @@ export function publishSignal(source: string, asset: string, score: number, conf
 
 /** Latest unexpired signal per (asset, source). */
 export function latestSignals(assets: string[], now = Date.now()): Signal[] {
-  const rows = getDb()
-    .prepare(
-      `SELECT s.* FROM quant_signals s JOIN (SELECT asset, source, MAX(at) AS at FROM quant_signals WHERE expires_at > ? GROUP BY asset, source) m
-       ON m.asset = s.asset AND m.source = s.source AND m.at = s.at ORDER BY s.asset, s.source`,
-    )
-    .all(now) as unknown as Signal[];
-  return rows.filter((r) => assets.includes(r.asset));
+  // Newest row per (asset, source); ties on `at` resolve by id so a refreshed signal always wins.
+  const rows = getDb().prepare('SELECT * FROM quant_signals WHERE expires_at > ? ORDER BY at DESC, id DESC').all(now) as unknown as Signal[];
+  const seen = new Set<string>();
+  const out: Signal[] = [];
+  for (const r of rows) {
+    const k = `${r.asset}|${r.source}`;
+    if (!assets.includes(r.asset) || seen.has(k)) continue;
+    seen.add(k);
+    out.push(r);
+  }
+  return out.sort((x, y) => x.asset.localeCompare(y.asset) || x.source.localeCompare(y.source));
 }
 
 /** The technical leg: compute from daily bars and publish (valid 26 h, refreshed hourly). */
@@ -114,6 +118,14 @@ export function refreshNews(assets: string[]): void {
     const hour = new Date().toISOString().slice(0, 13);
     publishSignal('news', a, score, conf, 48, 3 * 3600_000, { n: v.n, drivers: v.drivers.slice(0, 5), raw: v.score }, `${a}:${hour}`);
   }
+}
+
+/** The daily regime of an asset from its latest technical signal: true = bull (price > SMA200 and EMA20 > EMA50), false = bear, null = unknown. */
+export function regimeOf(asset: string, now = Date.now()): boolean | null {
+  const sig = latestSignals([asset], now).find((x) => x.source === 'technical');
+  if (!sig?.detail) return null;
+  const d = JSON.parse(sig.detail) as { bull?: boolean };
+  return typeof d.bull === 'boolean' ? d.bull : null;
 }
 
 export function merge(assets: string[], s: QuantSettings, now = Date.now()): Merged[] {
@@ -271,10 +283,10 @@ export async function step(mode: Mode, now = Date.now()): Promise<StepResult | n
         p.high = px;
         db.prepare('UPDATE quant_positions SET high = ? WHERE id = ?').run(px, p.id);
       }
-      // Trailing stop: once the trade is trailArmR × risk in profit, the stop follows the high.
+      // Trailing stop (rules strategy): once the trade is trailArmR × risk in profit, the stop follows the high.
       const riskPerUnit = p.entry - p.stop;
       const atrAbs = Number(JSON.parse(p.detail ?? '{}').atrAbs ?? riskPerUnit / R.stopAtr);
-      if (riskPerUnit > 0 && p.high - p.entry >= R.trailArmR * riskPerUnit) {
+      if (!(JSON.parse(p.detail ?? '{}') as { strategy?: string }).strategy && riskPerUnit > 0 && p.high - p.entry >= R.trailArmR * riskPerUnit) {
         const trail = p.high - R.trailAtr * atrAbs;
         if (trail > p.stop) {
           p.stop = trail;
@@ -282,12 +294,25 @@ export async function step(mode: Mode, now = Date.now()): Promise<StepResult | n
         }
       }
       const m = merged.find((x) => x.asset === p.asset);
+      const pd = JSON.parse(p.detail ?? '{}') as { strategy?: string; trailPct?: number };
       let reason: string | null = null;
-      if (px <= p.stop) reason = 'stop';
-      else if (p.target && px >= p.target) reason = 'target';
-      else if (p.deadline && now >= p.deadline) reason = 'deadline';
-      else if (m && m.score <= R.exitScore && m.parts.technical) reason = 'score';
-      else if (m?.vetoed) reason = m.vetoed;
+      if (pd.strategy === 'regime') {
+        // Regime strategy: trailing stop from the best price, or the regime turned bearish (daily).
+        const trail = p.high * (1 - (pd.trailPct ?? s.regime.trailPct) / 100);
+        if (trail > p.stop) {
+          p.stop = trail;
+          db.prepare('UPDATE quant_positions SET stop = ? WHERE id = ?').run(trail, p.id);
+        }
+        if (px <= p.stop) reason = 'stop';
+        else if (regimeOf(p.asset, now) === false) reason = 'regime';
+        else if (s.agentsVeto && m?.vetoed) reason = m.vetoed;
+      } else {
+        if (px <= p.stop) reason = 'stop';
+        else if (p.target && px >= p.target) reason = 'target';
+        else if (p.deadline && now >= p.deadline) reason = 'deadline';
+        else if (m && m.score <= R.exitScore && m.parts.technical) reason = 'score';
+        else if (s.agentsVeto && m?.vetoed) reason = m.vetoed;
+      }
       if (reason) {
         const r = await closePosition(mode, p, px, reason, `${p.id}:${reason}:${Math.floor(now / 60_000)}`);
         if (r) out.closed.push({ asset: p.asset, pnl: r, reason });
@@ -308,6 +333,55 @@ export async function step(mode: Mode, now = Date.now()): Promise<StepResult | n
       return out;
     }
     const held = new Set(openPositions(mode).map((p) => p.asset));
+    if (s.strategy === 'regime') {
+      // Equal weight: each asset gets 1/N of equity while its regime is bullish. No leverage, no pyramiding.
+      for (const asset of s.assets) {
+        if (held.has(asset)) continue;
+        const bull = regimeOf(asset, now);
+        if (bull !== true) {
+          out.skipped.push({ asset, why: bull === null ? 'no_signal' : 'bear' });
+          continue;
+        }
+        const m = merged.find((x) => x.asset === asset);
+        if (s.agentsVeto && m?.vetoed) {
+          out.skipped.push({ asset, why: m.vetoed });
+          continue;
+        }
+        const quote = q[asset];
+        const ok = tradeable(quote, now, R.maxPriceAgeSec, R.maxSourceGapPct);
+        if (!ok.ok) {
+          out.skipped.push({ asset, why: ok.why! });
+          continue;
+        }
+        if (now - lastLossAt(mode, asset) < s.regime.cooldownDays * 86400_000) {
+          out.skipped.push({ asset, why: 'cooldown' });
+          continue;
+        }
+        const px = quote!.price;
+        const eqNow = equity(mode, R.startBalance, q);
+        let notional = Math.min((eqNow.equity / s.assets.length) * 0.97, eqNow.cash * 0.98, (R.maxExposurePct / 100) * eqNow.equity - eqNow.exposure);
+        if (mode === 'live') notional = Math.min(notional, s.live.maxNotionalUsd);
+        if (notional < 10) {
+          out.skipped.push({ asset, why: 'exposure' });
+          continue;
+        }
+        const qty = Number((notional / px).toPrecision(6));
+        const nOrders = (getDb().prepare('SELECT COUNT(*) AS n FROM quant_orders WHERE mode = ? AND asset = ?').get(mode, asset) as { n: number }).n;
+        const placed = await place(mode, asset, 'buy', qty, px, 'entry', `${asset}:regime:${Math.floor(now / 3600_000)}:${nOrders}`, m?.parts ?? null, null);
+        if (!placed) continue;
+        const stop = placed.fill.price * (1 - s.regime.trailPct / 100);
+        const detail = { strategy: 'regime', trailPct: s.regime.trailPct, parts: m?.parts ?? null, price: { source: quote!.source, check: quote!.check } };
+        const res = getDb()
+          .prepare('INSERT INTO quant_positions(mode, asset, qty, entry, opened_at, stop, target, high, deadline, score, detail) VALUES(?,?,?,?,?,?,?,?,?,?,?)')
+          .run(mode, asset, qty, placed.fill.price, now, stop, null, placed.fill.price, null, m?.score ?? null, JSON.stringify(detail));
+        getDb().prepare('UPDATE quant_orders SET position_id = ? WHERE id = ?').run(Number(res.lastInsertRowid), placed.orderId);
+        audit(null, 'quant_open', { mode, asset, qty, price: placed.fill.price, stop, strategy: 'regime' });
+        tradingNotice(`🟢 Quant Desk bought ${asset} at ${placed.fill.price.toFixed(2)} ($${(qty * placed.fill.price).toFixed(0)} ${mode}, regime)\ntrailing stop ${s.regime.trailPct}% from the high`);
+        out.opened.push({ asset, qty, price: placed.fill.price });
+        held.add(asset);
+      }
+      return out;
+    }
     const ranked = merged.filter((m) => !held.has(m.asset)).sort((a, b) => b.score - a.score);
     for (const m of ranked) {
       if (openPositions(mode).length >= R.maxOpen) {
@@ -318,7 +392,7 @@ export async function step(mode: Mode, now = Date.now()): Promise<StepResult | n
         out.skipped.push({ asset: m.asset, why: 'score' });
         continue;
       }
-      if (m.vetoed) {
+      if (s.agentsVeto && m.vetoed) {
         out.skipped.push({ asset: m.asset, why: m.vetoed });
         continue;
       }

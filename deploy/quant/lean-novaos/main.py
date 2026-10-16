@@ -44,6 +44,9 @@ class NovaOSQuantDesk(QCAlgorithm):
         self.w_news = float(p("wNews", 0.2))
         self.w_ema = float(p("wEma", 0.0))          # EMA 20/50 cross as an extra rules leg
         self.allow_short = int(p("allowShort", 0))  # 1 = also sell short (1x) on strongly negative scores
+        self.strategy = p("strategy", "regime")       # regime | rules
+        self.trail_pct = float(p("trailPct", 15)) / 100
+        self.cooldown_days_regime = int(p("cooldownDays", 10))
 
         self.symbols = {}
         self.ind = {}
@@ -59,6 +62,7 @@ class NovaOSQuantDesk(QCAlgorithm):
                 "lo": self.min(sym, 55, Resolution.DAILY, Field.LOW),
                 "mom": self.momp(sym, 20, Resolution.DAILY),
                 "ema20": self.ema(sym, 20, Resolution.DAILY),
+                "sma200": self.sma(sym, 200, Resolution.DAILY),
             }
             self.set_warm_up(210, Resolution.DAILY)
         self.book = {}      # asset -> dict(entry, stop, target, high, atr, opened)
@@ -141,6 +145,8 @@ class NovaOSQuantDesk(QCAlgorithm):
         if self.day != now.date():
             self.day = now.date()
             self.day_start_equity = equity
+        if self.strategy == "regime":
+            return self._regime_step(data, now)
         # 1. manage
         for a, pos in list(self.book.items()):
             sym = self.symbols[a]
@@ -220,3 +226,42 @@ class NovaOSQuantDesk(QCAlgorithm):
             ticket = self.market_order(self.symbols[a], qty * side, tag=f"{'long' if side > 0 else 'short'} {m:.2f}")
             if ticket.status in (OrderStatus.FILLED, OrderStatus.PARTIALLY_FILLED, OrderStatus.SUBMITTED, OrderStatus.NEW):
                 self.book[a] = {"side": side, "entry": price, "stop": price * (1 - side * stop_pct), "stop0": price * (1 - side * stop_pct), "target": price * (1 + side * stop_pct * self.tp_r), "high": price, "atr": atr, "opened": now, "qty": qty}
+
+    def _regime_step(self, data, now):
+        """Long 1/N of equity while price > SMA200 and EMA20 > EMA50; exit on a trailing stop from
+        the highest close or when the regime turns; cooldown after a stop-out. Mirrors engine.ts."""
+        for a in self.assets:
+            sym = self.symbols[a]
+            if not data.bars.contains_key(sym):
+                continue
+            i = self.ind[a]
+            if not (i["sma200"].is_ready and i["ema20"].is_ready and i["ema50"].is_ready):
+                continue
+            c = data.bars[sym].close
+            bull = c > i["sma200"].current.value and i["ema20"].current.value > i["ema50"].current.value
+            pos = self.book.get(a)
+            if pos:
+                pos["high"] = max(pos["high"], c)
+                stop = pos["high"] * (1 - self.trail_pct)
+                if c <= stop:
+                    self.liquidate(sym, tag="stop")
+                    self.last_loss[a] = now
+                    del self.book[a]
+                elif not bull:
+                    self.liquidate(sym, tag="regime")
+                    if c < pos["entry"]:
+                        self.last_loss[a] = now
+                    del self.book[a]
+                continue
+            if not bull:
+                continue
+            if a in self.last_loss and (now - self.last_loss[a]).days < self.cooldown_days_regime:
+                continue
+            equity = self.portfolio.total_portfolio_value
+            notional = min(equity / len(self.assets) * 0.97, self.portfolio.cash_book["USDT"].amount * 0.98)
+            if notional < 10:
+                continue
+            qty = round(notional / c, 5)
+            t = self.market_order(sym, qty, tag="regime entry")
+            if t.status in (OrderStatus.FILLED, OrderStatus.PARTIALLY_FILLED, OrderStatus.SUBMITTED, OrderStatus.NEW):
+                self.book[a] = {"side": 1, "entry": c, "high": c, "qty": qty, "opened": now, "stop": c * (1 - self.trail_pct), "stop0": c * (1 - self.trail_pct), "target": 1e18, "atr": 0}

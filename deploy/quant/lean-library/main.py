@@ -44,6 +44,8 @@ class StrategyLibrary(QCAlgorithm):
         self.state = {a: False for a in self.assets}
         self.last_rebalance = None
         self.weight = 1.0 / len(self.assets)
+        self.peak = {}
+        self.cool = {}
 
     def _signal(self, a, bar):
         i, s = self.ind[a], self.strategy
@@ -51,6 +53,31 @@ class StrategyLibrary(QCAlgorithm):
         held = self.state[a]
         if s == "buyhold":
             return True
+        if s == "regime200":
+            # bull = close above its own 200-day SMA → fully long; bear → cash
+            return c > i["sma200"].current.value
+        if s == "btcregime":
+            # the market regime is BTC's: everything long while BTC is above its 200-day SMA
+            b = self.ind["BTCUSDT"]
+            return b["sma200"].is_ready and self.securities[self.syms["BTCUSDT"]].price > b["sma200"].current.value
+        if s == "regime_trail":
+            # regime_ema plus a 15 % trailing stop from the highest close since entry
+            bull = c > i["sma200"].current.value and i["ema20"].current.value > i["ema50"].current.value
+            hi = self.peak.get(a, 0)
+            if held:
+                self.peak[a] = max(hi, c)
+                if c < self.peak[a] * 0.85:
+                    self.cool[a] = self.time
+                    return False
+                return bull
+            if a in self.cool and (self.time - self.cool[a]).days < 10:
+                return False
+            if bull:
+                self.peak[a] = c
+            return bull
+        if s == "regime_ema":
+            # bull regime (above SMA200) AND short-term EMA20 > EMA50 → long; anything else → cash
+            return c > i["sma200"].current.value and i["ema20"].current.value > i["ema50"].current.value
         if s == "emacross":
             return i["ema20"].current.value > i["ema50"].current.value
         if s == "golden":
