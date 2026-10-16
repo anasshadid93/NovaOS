@@ -121,3 +121,15 @@ long-only, no stops) run on the same data (BTC/ETH/SOL/PAXG daily, Binance). Net
 
 The classic strategies ride bull markets harder but give back a third to half of the account in
 drawdowns; the NovaOS rules make less in 2021 and keep drawdowns under 20 %.
+
+### Tested additions (2026-10-16): shorts and an EMA leg — both rejected
+
+| variant | 2021→2025 | 2022 | 2024-07→2025-12 |
+| --- | --- | --- | --- |
+| base rules (long only) | +197% / DD 17% | −10% / 14% | +21% / 6.8% |
+| + short 1x below EMA200 | +124% / 21% | +0.3% / 15% | +6% / 11% |
+| + EMA 20/50 leg (weight 0.3) | +129% / 22% | −11% / 15% | +14% / 7.3% |
+
+Shorting helps only in 2022 and costs more everywhere else; the EMA leg adds nothing the technical
+score does not already contain. Both stay available as parameters (`allowShort`, `wEma`) in the LEAN
+project, off by default.

@@ -20,7 +20,7 @@ class NovaOSQuantDesk(QCAlgorithm):
         self.set_end_date(*[int(x) for x in p("end", "2026-01-01").split("-")])
         self.set_cash(0)  # no default USD; the account is USDT only
         self.set_cash("USDT", float(p("cash", 10000)))
-        self.set_brokerage_model(BrokerageName.BINANCE, AccountType.CASH)
+        self.set_brokerage_model(BrokerageName.BINANCE, AccountType.MARGIN if int(p("allowShort", 0)) else AccountType.CASH)
         self.settings.free_portfolio_value_percentage = 0.02
 
         self.assets = [a.strip() for a in p("assets", "BTCUSDT,ETHUSDT,SOLUSDT,PAXGUSDT").split(",") if a.strip()]
@@ -42,6 +42,8 @@ class NovaOSQuantDesk(QCAlgorithm):
         self.w_tech = float(p("wTechnical", 0.4))
         self.w_agents = float(p("wAgents", 0.4))
         self.w_news = float(p("wNews", 0.2))
+        self.w_ema = float(p("wEma", 0.0))          # EMA 20/50 cross as an extra rules leg
+        self.allow_short = int(p("allowShort", 0))  # 1 = also sell short (1x) on strongly negative scores
 
         self.symbols = {}
         self.ind = {}
@@ -56,6 +58,7 @@ class NovaOSQuantDesk(QCAlgorithm):
                 "hi": self.max(sym, 55, Resolution.DAILY, Field.HIGH),
                 "lo": self.min(sym, 55, Resolution.DAILY, Field.LOW),
                 "mom": self.momp(sym, 20, Resolution.DAILY),
+                "ema20": self.ema(sym, 20, Resolution.DAILY),
             }
             self.set_warm_up(210, Resolution.DAILY)
         self.book = {}      # asset -> dict(entry, stop, target, high, atr, opened)
@@ -114,6 +117,11 @@ class NovaOSQuantDesk(QCAlgorithm):
             return None, None, False
         tech, atr = t
         num, den = self.w_tech * 0.8 * tech, self.w_tech * 0.8
+        if self.w_ema > 0:
+            i = self.ind[a]
+            e = 1.0 if i["ema20"].current.value > i["ema50"].current.value else -1.0
+            num += self.w_ema * 0.8 * e
+            den += self.w_ema * 0.8
         vetoed = False
         for source, (score, conf) in self._external(a, now).items():
             w = {"agents": self.w_agents, "news": self.w_news}.get(source, 0)
@@ -138,26 +146,40 @@ class NovaOSQuantDesk(QCAlgorithm):
             sym = self.symbols[a]
             if not data.bars.contains_key(sym):
                 continue
-            price = data.bars[sym].close
-            pos["high"] = max(pos["high"], data.bars[sym].high)
-            risk = pos["entry"] - pos["stop0"]
-            if risk > 0 and pos["high"] - pos["entry"] >= self.trail_arm_r * risk:
-                pos["stop"] = max(pos["stop"], pos["high"] - self.trail_atr * pos["atr"])
+            bar = data.bars[sym]
+            price = bar.close
+            side = pos["side"]  # +1 long, -1 short
+            if side > 0:
+                pos["high"] = max(pos["high"], bar.high)
+                risk = pos["entry"] - pos["stop0"]
+                if risk > 0 and pos["high"] - pos["entry"] >= self.trail_arm_r * risk:
+                    pos["stop"] = max(pos["stop"], pos["high"] - self.trail_atr * pos["atr"])
+            else:
+                pos["high"] = min(pos["high"], bar.low)  # "high" = best price seen, i.e. the low for a short
+                risk = pos["stop0"] - pos["entry"]
+                if risk > 0 and pos["entry"] - pos["high"] >= self.trail_arm_r * risk:
+                    pos["stop"] = min(pos["stop"], pos["high"] + self.trail_atr * pos["atr"])
             m, _, vetoed = self._merged(a, price, now)
             reason = None
-            if data.bars[sym].low <= pos["stop"]:
+            if side > 0 and bar.low <= pos["stop"]:
                 reason = "stop"
-            elif price >= pos["target"]:
+            elif side < 0 and bar.high >= pos["stop"]:
+                reason = "stop"
+            elif side > 0 and price >= pos["target"]:
+                reason = "target"
+            elif side < 0 and price <= pos["target"]:
                 reason = "target"
             elif (now - pos["opened"]).days >= self.max_hold:
                 reason = "deadline"
-            elif m is not None and m <= self.exit_score:
+            elif m is not None and side > 0 and m <= self.exit_score:
                 reason = "score"
-            elif vetoed:
+            elif m is not None and side < 0 and m >= -self.exit_score:
+                reason = "score"
+            elif vetoed and side > 0:
                 reason = "agents_sell"
             if reason:
                 self.liquidate(sym, tag=reason)
-                pnl = (price - pos["entry"]) * pos["qty"]
+                pnl = (price - pos["entry"]) * pos["qty"] * side
                 if pnl < 0:
                     self.last_loss[a] = now
                 del self.book[a]
@@ -174,22 +196,27 @@ class NovaOSQuantDesk(QCAlgorithm):
                 continue
             price = data.bars[sym].close
             m, atr, vetoed = self._merged(a, price, now)
-            if m is None or vetoed or m < self.entry_score:
+            if m is None:
                 continue
             if a in self.last_loss and (now - self.last_loss[a]).total_seconds() < self.cooldown_days * 86400:
                 continue
-            cands.append((m, a, price, atr))
+            if m >= self.entry_score and not vetoed:
+                cands.append((m, a, price, atr, 1))
+            elif self.allow_short and m <= -self.entry_score and price < self.ind[a]["ema200"].current.value:
+                cands.append((-m, a, price, atr, -1))  # shorts only in a bear regime (below EMA200)
         cands.sort(reverse=True)
-        for m, a, price, atr in cands:
+        for m, a, price, atr, side in cands:
             if len(self.book) >= self.max_open:
                 break
             equity = self.portfolio.total_portfolio_value
-            exposure = sum(self.portfolio[self.symbols[b]].holdings_value for b in self.book)
+            exposure = sum(abs(self.portfolio[self.symbols[b]].holdings_value) for b in self.book)
             stop_pct = min(self.stop_max, max(self.stop_min, self.stop_atr * atr / price))
-            notional = min(self.risk_pct * equity / stop_pct, self.max_pos_pct * equity, self.max_exp_pct * equity - exposure, self.portfolio.cash_book["USDT"].amount * 0.98)
+            notional = min(self.risk_pct * equity / stop_pct, self.max_pos_pct * equity, self.max_exp_pct * equity - exposure)
+            if side > 0:
+                notional = min(notional, self.portfolio.cash_book["USDT"].amount * 0.98)
             if notional < 10:
                 continue
             qty = round(notional / price, 5)
-            ticket = self.market_order(self.symbols[a], qty, tag=f"entry {m:.2f}")
+            ticket = self.market_order(self.symbols[a], qty * side, tag=f"{'long' if side > 0 else 'short'} {m:.2f}")
             if ticket.status in (OrderStatus.FILLED, OrderStatus.PARTIALLY_FILLED, OrderStatus.SUBMITTED, OrderStatus.NEW):
-                self.book[a] = {"entry": price, "stop": price * (1 - stop_pct), "stop0": price * (1 - stop_pct), "target": price * (1 + stop_pct * self.tp_r), "high": price, "atr": atr, "opened": now, "qty": qty}
+                self.book[a] = {"side": side, "entry": price, "stop": price * (1 - side * stop_pct), "stop0": price * (1 - side * stop_pct), "target": price * (1 + side * stop_pct * self.tp_r), "high": price, "atr": atr, "opened": now, "qty": qty}
