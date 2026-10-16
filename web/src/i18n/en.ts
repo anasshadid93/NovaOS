@@ -1812,6 +1812,20 @@ export const en = {
   'quant.why.flip': "trend flipped",
   'quant.why.trail': "trailing stop",
   'quant.why.liq': "liquidated",
+  'quant.tab.hunt': "Hunter",
+  'quant.x.title': "Strong assets that just dropped",
+  'quant.x.scan': "Scan now",
+  'quant.x.hint': "A watch list, not a bot: large coins and blue-chip stocks (US + Saudi) that fell sharply in the last days while their long-term trend is intact, with the news that mentions them. Buying dips mechanically lost in the 2021–2025 tests, so you decide.",
+  'quant.x.universe': "Scanned {c} coins and {s} stocks {when}.",
+  'quant.x.none': "Nothing is on sale right now: no strong asset dropped sharply in the last ten days.",
+  'quant.x.line': "Now {price}, was {high} — back to that would be +{back}%",
+  'quant.x.trendOk': "long-term trend intact",
+  'quant.x.trendBroken': "below its 200-day average",
+  'quant.x.year': "{p}% over a year",
+  'quant.x.ai': "AI team: {r}",
+  'quant.x.noNews': "No headline mentions it in our feeds this week.",
+  'quant.x.ask': "Ask the AI team",
+  'quant.x.asked': "Debate started — see AI opinion in a few minutes",
 } as const;
 
 export type MessageKey = keyof typeof en;

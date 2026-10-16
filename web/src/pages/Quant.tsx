@@ -182,7 +182,7 @@ interface Data {
 
 const usd = (v: number) => `$${v.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 const px = (v: number) => (v >= 100 ? v.toLocaleString('en-US', { maximumFractionDigits: 2 }) : v.toPrecision(4));
-const TABS = ['overview', 'trades', 'futures', 'signals', 'agents', 'backtests', 'risk', 'audit'] as const;
+const TABS = ['overview', 'trades', 'futures', 'hunt', 'signals', 'agents', 'backtests', 'risk', 'audit'] as const;
 type Tab = (typeof TABS)[number];
 const PHRASE = 'I AUTHORIZE LIVE TRADING WITH REAL FUNDS';
 
@@ -221,6 +221,25 @@ export function Quant() {
   const [bt, setBt] = useState({ start: '2021-01-01', end: new Date().toISOString().slice(0, 10), trainDays: 365, testDays: 90 });
   const [keys, setKeys] = useState({ anthropic: '', openai: '', broker: 'binance-testnet', key: '', secret: '', phrase: '', maxNotionalUsd: 100 });
   const [auditRows, setAudit] = useState<{ ts: number; action: string; detail: string | null }[]>([]);
+  const [opps, setOpps] = useState<{
+    at: number;
+    items: {
+      symbol: string;
+      kind: 'crypto' | 'stock';
+      name: string;
+      market: string;
+      close: number;
+      high: number;
+      dropPct: number;
+      targetPct: number;
+      trendIntact: boolean;
+      yearPct: number | null;
+      headlines: { title: string; link: string; at: number }[];
+      ai: { rating: string; score: number | null; id: string } | null;
+    }[];
+    universe: { crypto: number; stocks: number };
+    status: { scanning: boolean };
+  } | null>(null);
   const [orders, setOrders] = useState<
     {
       id: number;
@@ -260,6 +279,10 @@ export function Quant() {
     if (tab === 'trades')
       api<typeof orders>('/api/quant/orders?limit=300')
         .then(setOrders)
+        .catch(() => undefined);
+    if (tab === 'hunt')
+      api<NonNullable<typeof opps>>('/api/quant/opportunities')
+        .then(setOpps)
         .catch(() => undefined);
   }, [tab, d?.lastStep?.at]);
 
@@ -866,6 +889,68 @@ export function Quant() {
                 </>
               );
             })()}
+          </>
+        )}
+
+        {tab === 'hunt' && (
+          <>
+            <Card
+              title={t('quant.x.title')}
+              action={
+                <button
+                  type="button"
+                  disabled={busy}
+                  className="rounded-full bg-primary-soft px-3 py-1 text-xs text-primary-ink disabled:opacity-50"
+                  onClick={() => void run(() => api('/api/quant/opportunities/scan', { body: {} })).then(() => api<NonNullable<typeof opps>>('/api/quant/opportunities').then(setOpps))}
+                >
+                  {t('quant.x.scan')}
+                </button>
+              }
+            >
+              <p className="text-xs text-muted">{t('quant.x.hint')}</p>
+              {opps && <p className="mt-1 text-xs text-muted">{t('quant.x.universe', { c: opps.universe.crypto, s: opps.universe.stocks, when: formatRelative(opps.at) })}</p>}
+              {opps && opps.items.length === 0 && <p className="mt-3 text-sm text-ink">{t('quant.x.none')}</p>}
+              <ul className="mt-2 space-y-3">
+                {opps?.items.map((o) => (
+                  <li key={o.symbol} className="rounded-xl bg-canvas p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-heading">
+                        {o.name} <span className="text-xs font-normal text-muted">{o.kind === 'crypto' ? 'crypto' : o.market}</span>
+                      </span>
+                      <span className="font-semibold text-danger" dir="ltr">
+                        −{o.dropPct.toFixed(1)}%
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-ink">{t('quant.x.line', { price: px(o.close), high: px(o.high), back: o.targetPct.toFixed(0) })}</p>
+                    <p className="text-xs text-muted">
+                      {o.trendIntact ? t('quant.x.trendOk') : t('quant.x.trendBroken')}
+                      {o.yearPct !== null && ` · ${t('quant.x.year', { p: (o.yearPct >= 0 ? '+' : '') + o.yearPct.toFixed(0) })}`}
+                      {o.ai && ` · ${t('quant.x.ai', { r: t(`quant.h.rating.${o.ai.rating.toLowerCase()}` as MessageKey) })}`}
+                    </p>
+                    {o.headlines.length > 0 && (
+                      <ul className="mt-1 space-y-0.5 text-xs">
+                        {o.headlines.map((h) => (
+                          <li key={h.link}>
+                            <a href={h.link} target="_blank" rel="noreferrer" className="text-primary-ink">
+                              {h.title}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {o.headlines.length === 0 && <p className="mt-1 text-xs text-muted">{t('quant.x.noNews')}</p>}
+                    <button
+                      type="button"
+                      disabled={busy || !d.agents.alive}
+                      className="mt-2 rounded-full bg-primary-soft px-3 py-1 text-xs text-primary-ink disabled:opacity-50"
+                      onClick={() => void run(() => api('/api/quant/agents/run', { body: { asset: o.kind === 'crypto' ? o.symbol.replace('USDT', '') : o.symbol, force: true } }), t('quant.x.asked'))}
+                    >
+                      {t('quant.x.ask')}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </Card>
           </>
         )}
 

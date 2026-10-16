@@ -120,7 +120,9 @@ function runsToday(): number {
 /** Queues one debate for an asset (today). Returns the run id, or a reason it was not started. */
 export async function requestRun(asset: string, opts: { force?: boolean } = {}): Promise<{ id?: string; skipped?: string }> {
   const s = getSettings();
-  const m = MARKETS[asset];
+  // A known crypto asset (BTC…) maps to its Yahoo ticker; anything else is taken as a stock ticker (AAPL, 2222.SR).
+  const m = MARKETS[asset] ?? (/^[A-Z0-9.\-]{1,12}$/.test(asset) ? { yahoo: asset, binance: '', kraken: '', leanTicker: '' } : null);
+  const assetType = MARKETS[asset] ? 'crypto' : 'stock';
   if (!m) return { skipped: 'unknown_asset' };
   if (!alive) return { skipped: 'agents_offline' };
   const route = routeModels(s);
@@ -144,7 +146,7 @@ export async function requestRun(asset: string, opts: { force?: boolean } = {}):
   const r = await fetch(`${base()}/run`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, ticker: m.yahoo, date: day, asset_type: 'crypto', analysts: s.analysts, llm, rounds: 1 }),
+    body: JSON.stringify({ id, ticker: m.yahoo, date: day, asset_type: assetType, analysts: assetType === 'stock' ? [...new Set([...s.analysts, 'fundamentals'])] : s.analysts, llm, rounds: 1 }),
     signal: AbortSignal.timeout(10_000),
   });
   if (!r.ok) return { skipped: `sidecar_${r.status}` };
@@ -186,7 +188,7 @@ export async function pollRuns(): Promise<void> {
         JSON.stringify(res.reports),
         p.id,
       );
-      if (res.score !== null && res.score !== undefined) {
+      if (res.score !== null && res.score !== undefined && MARKETS[p.asset]) {
         // One signal per run; confidence from how decisive the rating is. Valid for 36 h (a daily opinion).
         const conf = Math.min(1, 0.5 + Math.abs(res.score) * 0.5);
         db.prepare('INSERT OR IGNORE INTO quant_signals(at, source, asset, score, confidence, horizon_h, expires_at, price, price_source, detail, ref) VALUES(?,?,?,?,?,?,?,?,?,?,?)').run(

@@ -8,6 +8,7 @@ import { liveRoutes, liveStatus, startLive, stopLive } from './live.js';
 import { MARKETS, quotes } from './market.js';
 import { closeFuturesManual, closedFutures, futuresData, futuresEquity, futuresState, futuresStep, openFutures } from './futures-engine.js';
 import { DEFAULT_FPARAMS, simulatePortfolio, type FParams } from './futures.js';
+import { scannerRoutes, scannerStatus, startScanner } from './scanner.js';
 import { getSettings, publicSettings, saveSettings, type QuantSettings } from './settings.js';
 
 /**
@@ -68,10 +69,12 @@ export function startQuant(): () => void {
     timers.push(setInterval(safe(pollRuns), 30_000));
     timers.push(setInterval(safe(scheduleRuns), 5 * 60_000));
   }
+  const stopScan = startScanner();
   const stopL = startLean();
   const stopLv = startLive();
   return () => {
     timers.forEach(clearTimeout);
+    stopScan();
     stopAgents();
     stopL();
     stopLv();
@@ -83,6 +86,7 @@ export function startQuant(): () => void {
 export async function quantRoutes(app: FastifyInstance) {
   await app.register(leanRoutes);
   await app.register(liveRoutes);
+  await app.register(scannerRoutes);
 
   app.get('/api/quant', { preHandler: requireAuth }, async () => {
     const s = getSettings();
@@ -99,6 +103,7 @@ export async function quantRoutes(app: FastifyInstance) {
       agents: { installed: agentsInstalled(), alive: agentsAlive(), error: agentsError(), route: routeModels(s), runs: listRuns(30) },
       futures: { ...futuresEquity(), open: openFutures(), closed: closedFutures(100), perf: performance('futures', s.futures.startBalance), ...futuresState(), settings: s.futures },
       lean: leanStatus(),
+      scanner: scannerStatus(),
       lastStep: lastStep ? { at: lastStepAt, opened: lastStep.opened, closed: lastStep.closed, skipped: lastStep.skipped } : null,
       lastError: lastErr,
     };
@@ -141,8 +146,8 @@ export async function quantRoutes(app: FastifyInstance) {
   });
 
   app.post<{ Body: { asset?: string; force?: boolean } }>('/api/quant/agents/run', { preHandler: requireAuth }, async (req, reply) => {
-    const asset = String(req.body?.asset ?? '');
-    if (!MARKETS[asset]) return reply.code(400).send({ error: 'unknown_asset' });
+    const asset = String(req.body?.asset ?? '').toUpperCase();
+    if (!MARKETS[asset] && !/^[A-Z0-9.\-]{1,12}$/.test(asset)) return reply.code(400).send({ error: 'unknown_asset' });
     const r = await requestRun(asset, { force: !!req.body?.force });
     audit(req.session!.userId, 'quant_agents_run', { asset, ...r });
     return r;

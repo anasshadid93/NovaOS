@@ -174,3 +174,21 @@ Evidence, 2021-01→2025-12, BTC/ETH/SOL, $10k split equally (net / max drawdown
 | 4h, 3x, trail 6 ATR | +210% / 41% | | | | | |
 
 Faster bars lose to fees and chop; leverage above 2x mostly adds drawdown.
+
+## The Hunter (2026-10-16): dip watch list, not a bot
+
+`hunter.ts` tests "buy a strong asset after a sharp drop, hold until it recovers" (drop ≥ dipPct from
+the 60-day high within 10 days, close ≥ qualityPct of SMA200, target = pre-dip high capped, stop,
+90-day max hold). Results 2021-06→2025-12:
+
+| universe | best config | net | max DD | trades | win |
+| --- | --- | --- | --- | --- | --- |
+| 40 US + 10 Saudi stocks | dip 12 %, stop 8 % | +29% | 14% | 88 | 40% |
+| 10 Saudi stocks only | default | −1.4% | 16% | 69 | 49% |
+| 30 large coins | any | −4% … −42% | 15–46% | | |
+
+Dips in crypto keep falling; in stocks the rule barely beats cash and loses to buy-and-hold, so the
+Hunter ships as a **watch list** (`scanner.ts`, `/api/quant/opportunities`): top-60 Binance pairs
+by volume + 50 blue-chip stocks, refreshed every 4 h (crypto from Binance, stocks via yfinance in
+the TradingAgents venv), each hit with the headlines that mention it and an "Ask the AI team" button
+(TradingAgents now also runs on stock tickers, with the fundamentals analyst).
