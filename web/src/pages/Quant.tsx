@@ -149,7 +149,6 @@ interface Data {
 
 const usd = (v: number) => `$${v.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 const px = (v: number) => (v >= 100 ? v.toLocaleString('en-US', { maximumFractionDigits: 2 }) : v.toPrecision(4));
-const pct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
 const TABS = ['overview', 'signals', 'agents', 'backtests', 'risk', 'audit'] as const;
 type Tab = (typeof TABS)[number];
 const PHRASE = 'I AUTHORIZE LIVE TRADING WITH REAL FUNDS';
@@ -161,15 +160,6 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: 'ok
       <div className={`truncate text-sm font-semibold ${tone === 'ok' ? 'text-ok' : tone === 'danger' ? 'text-danger' : 'text-ink'}`} dir="ltr">
         {value}
       </div>
-    </div>
-  );
-}
-function ScoreBar({ v }: { v: number }) {
-  const w = Math.min(100, Math.abs(v) * 100);
-  return (
-    <div className="flex h-2 w-24 overflow-hidden rounded-full bg-canvas" dir="ltr" aria-hidden>
-      <div className="w-1/2">{v < 0 && <div className="ms-auto h-2 bg-danger" style={{ width: `${w}%` }} />}</div>
-      <div className="w-1/2">{v > 0 && <div className="h-2 bg-ok" style={{ width: `${w}%` }} />}</div>
     </div>
   );
 }
@@ -270,102 +260,182 @@ export function Quant() {
 
         {tab === 'overview' && (
           <>
-            <p className={`rounded-xl px-3 py-2 text-xs ${mode === 'live' ? 'bg-danger/10 text-danger' : 'bg-primary-soft text-primary-ink'}`}>
-              {mode === 'live' ? t('quant.modeLive', { broker: d.settings.live.broker }) : t('quant.modePaper')}
-            </p>
-            <div className="grid grid-cols-4 gap-2">
-              <Stat label={t('quant.equity')} value={usd(book.equity)} tone={ret >= 0 ? 'ok' : 'danger'} />
-              <Stat label={t('quant.return')} value={pct(ret)} tone={ret >= 0 ? 'ok' : 'danger'} />
-              <Stat label={t('quant.exposure')} value={usd(book.exposure)} />
-              <Stat label={t('quant.trades')} value={String(book.perf.trades)} />
-              <Stat label={t('quant.winRate')} value={`${(book.perf.winRate * 100).toFixed(0)}%`} />
-              <Stat label={t('quant.profitFactor')} value={Number.isFinite(book.perf.profitFactor) ? book.perf.profitFactor.toFixed(2) : '∞'} />
-              <Stat label={t('quant.drawdown')} value={`${book.perf.maxDrawdownPct.toFixed(1)}%`} tone={book.perf.maxDrawdownPct > 10 ? 'danger' : undefined} />
-              <Stat label={t('quant.sharpe')} value={book.perf.sharpe.toFixed(2)} />
-            </div>
-            <Card title={t('quant.equityCurve')}>
-              {book.perf.curve.length > 2 ? (
-                <Chart
-                  data={[book.perf.curve.map((p) => Math.round(p.at / 1000)), book.perf.curve.map((p) => p.equity)]}
-                  series={[{ label: 'USD', color: '#2f6fe4' }]}
-                  height={180}
-                  fmt={(v) => usd(v)}
-                />
-              ) : (
-                <p className="text-xs text-muted">{t('quant.noCurve')}</p>
-              )}
+            {/* 1. One sentence: what the bot is doing right now. */}
+            <Card>
+              <div className="flex items-start gap-3">
+                <span className={`mt-1 size-3 shrink-0 rounded-full ${book.open.length ? 'bg-ok' : 'bg-primary'} animate-pulse`} aria-hidden />
+                <div className="min-w-0">
+                  <p className="text-base font-semibold text-heading">{book.open.length ? t('quant.h.holding', { n: book.open.length }) : t('quant.h.watching')}</p>
+                  <p className="mt-0.5 text-sm text-muted">
+                    {mode === 'live' ? t('quant.modeLive', { broker: d.settings.live.broker }) : t('quant.h.paperLine')}
+                    {d.lastStep && ` · ${t('quant.h.checked', { when: formatRelative(d.lastStep.at) })}`}
+                  </p>
+                </div>
+              </div>
             </Card>
-            <Card title={t('quant.scores')}>
-              <ul className="divide-y divide-line">
+
+            {/* 2. Money, in three plain numbers. */}
+            <Card>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <div className="text-[11px] text-muted">{t('quant.h.balance')}</div>
+                  <div className="text-lg font-semibold text-heading" dir="ltr">
+                    {usd(book.equity)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[11px] text-muted">{t('quant.h.sinceStart')}</div>
+                  <div className={`text-lg font-semibold ${ret >= 0 ? 'text-ok' : 'text-danger'}`} dir="ltr">
+                    {ret >= 0 ? '+' : ''}
+                    {usd(book.equity - d.settings.risk.startBalance)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[11px] text-muted">{t('quant.h.inMarket')}</div>
+                  <div className="text-lg font-semibold text-heading" dir="ltr">
+                    {book.equity > 0 ? `${Math.round((book.exposure / book.equity) * 100)}%` : '0%'}
+                  </div>
+                </div>
+              </div>
+              {book.perf.curve.length > 2 && (
+                <div className="mt-3">
+                  <Chart
+                    data={[book.perf.curve.map((p) => Math.round(p.at / 1000)), book.perf.curve.map((p) => p.equity)]}
+                    series={[{ label: 'USD', color: '#2f6fe4' }]}
+                    height={120}
+                    fmt={(v) => usd(v)}
+                  />
+                </div>
+              )}
+              <details className="mt-2 text-xs">
+                <summary className="cursor-pointer text-muted">{t('quant.h.expert')}</summary>
+                <div className="mt-2 grid grid-cols-4 gap-2">
+                  <Stat label={t('quant.trades')} value={String(book.perf.trades)} />
+                  <Stat label={t('quant.winRate')} value={`${(book.perf.winRate * 100).toFixed(0)}%`} />
+                  <Stat label={t('quant.profitFactor')} value={Number.isFinite(book.perf.profitFactor) ? book.perf.profitFactor.toFixed(2) : '∞'} />
+                  <Stat label={t('quant.drawdown')} value={`${book.perf.maxDrawdownPct.toFixed(1)}%`} tone={book.perf.maxDrawdownPct > 10 ? 'danger' : undefined} />
+                  <Stat label={t('quant.sharpe')} value={book.perf.sharpe.toFixed(2)} />
+                  <Stat label={t('quant.exposure')} value={usd(book.exposure)} />
+                </div>
+              </details>
+            </Card>
+
+            {/* 3. Each asset in one line of words: mood, how close to a buy, and why. */}
+            <Card title={t('quant.h.market')}>
+              <p className="mb-2 text-xs text-muted">{t('quant.h.marketHint')}</p>
+              <ul className="space-y-3">
                 {d.merged.map((m) => {
                   const q = d.quotes[m.asset];
+                  const R = d.settings.risk;
+                  const held = book.open.some((p) => p.asset === m.asset);
+                  const level = held ? 'held' : m.vetoed ? 'veto' : m.score >= R.entryScore ? 'buy' : m.score >= R.entryScore * 0.6 ? 'close' : m.score > R.exitScore ? 'neutral' : 'down';
+                  const tone = level === 'buy' || level === 'held' ? 'bg-ok' : level === 'close' ? 'bg-warn' : level === 'neutral' ? 'bg-muted' : 'bg-danger';
+                  const progress = Math.max(0, Math.min(1, (m.score - R.exitScore) / (R.entryScore - R.exitScore)));
+                  const tech = m.parts.technical?.score ?? 0;
+                  const ag = m.parts.agents;
+                  const nw = m.parts.news;
+                  const reasons = [
+                    tech > 0.2 ? t('quant.h.techUp') : tech < -0.2 ? t('quant.h.techDown') : t('quant.h.techFlat'),
+                    ag ? (ag.score > 0.2 ? t('quant.h.aiBuy') : ag.score < -0.2 ? t('quant.h.aiSell') : t('quant.h.aiWait')) : null,
+                    nw ? (nw.score > 0.15 ? t('quant.h.newsGood') : nw.score < -0.15 ? t('quant.h.newsBad') : t('quant.h.newsQuiet')) : null,
+                  ].filter(Boolean);
                   return (
-                    <li key={m.asset} className="flex items-center justify-between gap-2 py-2 text-sm">
-                      <span className="w-12 font-medium text-ink">{m.asset}</span>
-                      <span className="flex-1 text-xs text-muted" dir="ltr">
-                        {q ? `${px(q.price)} · ${q.source}${q.check ? ` ✓ ${q.check.gapPct.toFixed(2)}%` : ' ?'}` : '—'}
-                      </span>
-                      <ScoreBar v={m.score} />
-                      <span className={`w-14 text-end tabular-nums ${m.score >= d.settings.risk.entryScore ? 'text-ok' : m.score <= d.settings.risk.exitScore ? 'text-danger' : 'text-ink'}`} dir="ltr">
-                        {m.score.toFixed(2)}
-                      </span>
-                      {m.vetoed && <span className="text-xs text-danger">{why(m.vetoed)}</span>}
-                    </li>
-                  );
-                })}
-              </ul>
-              {d.lastStep && (
-                <p className="mt-2 text-xs text-muted">
-                  {t('quant.lastStep', { when: formatRelative(d.lastStep.at) })}
-                  {d.lastStep.skipped.length > 0 && `: ${d.lastStep.skipped.map((s) => `${s.asset} ${why(s.why)}`).join(', ')}`}
-                </p>
-              )}
-            </Card>
-            <Card title={t('quant.open')}>
-              {book.open.length === 0 && <p className="text-xs text-muted">{t('quant.noOpen')}</p>}
-              <ul className="divide-y divide-line">
-                {book.open.map((p) => {
-                  const cur = d.quotes[p.asset]?.price ?? p.entry;
-                  const u = (cur - p.entry) * p.qty;
-                  return (
-                    <li key={p.id} className="py-2 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-ink">
-                          {p.asset} <span className="text-xs text-muted">× {p.qty}</span>
-                        </span>
-                        <span className={u >= 0 ? 'text-ok' : 'text-danger'} dir="ltr">
-                          {usd(u)} ({pct(((cur - p.entry) / p.entry) * 100)})
+                    <li key={m.asset}>
+                      <div className="flex items-center gap-2">
+                        <span className={`size-2.5 shrink-0 rounded-full ${tone}`} aria-hidden />
+                        <span className="w-12 font-semibold text-heading">{m.asset}</span>
+                        <span className="flex-1 text-sm text-ink">{t(`quant.h.l.${level}` as MessageKey)}</span>
+                        <span className="text-xs text-muted" dir="ltr">
+                          {q ? px(q.price) : '—'}
                         </span>
                       </div>
-                      <div className="flex flex-wrap justify-between gap-2 text-xs text-muted" dir="ltr">
-                        <span>
-                          {t('quant.entry')} {px(p.entry)} · {t('quant.stop')} {px(p.stop)} · {t('quant.target')} {p.target ? px(p.target) : '—'}
-                        </span>
-                        <button type="button" disabled={busy} className="text-primary-ink" onClick={() => void run(() => api(`/api/quant/positions/${p.id}/close`, { body: {} }))}>
-                          {t('quant.closeNow')}
-                        </button>
+                      <div className="mt-1 ms-5 flex items-center gap-2">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-canvas" dir="ltr" aria-hidden>
+                          <div className={`h-1.5 rounded-full ${tone}`} style={{ width: `${Math.round(progress * 100)}%` }} />
+                        </div>
+                        <span className="w-20 text-end text-[11px] text-muted">{t('quant.h.toBuy', { p: Math.round(progress * 100) })}</span>
                       </div>
+                      <p className="ms-5 mt-0.5 text-xs text-muted">{reasons.join(' · ')}</p>
                     </li>
                   );
                 })}
               </ul>
             </Card>
-            <Card title={t('quant.closed')}>
-              {book.closed.length === 0 && <p className="text-xs text-muted">{t('quant.noTrades')}</p>}
-              <ul className="divide-y divide-line">
-                {book.closed.slice(0, 40).map((p) => (
-                  <li key={p.id} className="flex items-center justify-between py-1.5 text-sm">
-                    <span className="text-ink">
-                      {p.asset}{' '}
-                      <span className="text-xs text-muted">
-                        {why(p.reason ?? '')} · {formatRelative(p.closed_at ?? 0)}
-                      </span>
-                    </span>
+
+            {/* 4. Open trades as a stop → now → target bar. */}
+            {book.open.length > 0 && (
+              <Card title={t('quant.open')}>
+                <ul className="space-y-3">
+                  {book.open.map((p) => {
+                    const cur = d.quotes[p.asset]?.price ?? p.entry;
+                    const u = (cur - p.entry) * p.qty;
+                    const lo = p.stop;
+                    const hi = p.target ?? p.entry * 1.1;
+                    const pos = Math.max(0, Math.min(1, (cur - lo) / (hi - lo)));
+                    return (
+                      <li key={p.id}>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-semibold text-heading">
+                            {p.asset} <span className="text-xs font-normal text-muted">{t('quant.h.boughtAt', { price: px(p.entry), when: formatRelative(p.opened_at) })}</span>
+                          </span>
+                          <span className={`font-semibold ${u >= 0 ? 'text-ok' : 'text-danger'}`} dir="ltr">
+                            {u >= 0 ? '+' : ''}
+                            {usd(u)}
+                          </span>
+                        </div>
+                        <div className="relative mt-2 h-2 rounded-full bg-gradient-to-r from-danger via-canvas to-ok" dir="ltr" aria-hidden>
+                          <span className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface bg-heading" style={{ left: `${pos * 100}%` }} />
+                        </div>
+                        <div className="mt-1 flex justify-between text-[11px] text-muted" dir="ltr">
+                          <span>
+                            {t('quant.h.stopAt')} {px(lo)}
+                          </span>
+                          <button type="button" disabled={busy} className="text-primary-ink" onClick={() => void run(() => api(`/api/quant/positions/${p.id}/close`, { body: {} }))}>
+                            {t('quant.closeNow')}
+                          </button>
+                          <span>
+                            {t('quant.h.targetAt')} {px(hi)}
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Card>
+            )}
+
+            {/* 5. Today's story, in words. */}
+            <Card title={t('quant.h.story')}>
+              <ul className="space-y-1.5 text-sm">
+                {book.closed.slice(0, 5).map((p) => (
+                  <li key={`c${p.id}`} className="flex justify-between gap-2">
+                    <span className="text-ink">{t('quant.h.closedLine', { asset: p.asset, why: why(p.reason ?? ''), when: formatRelative(p.closed_at ?? 0) })}</span>
                     <span className={(p.pnl ?? 0) >= 0 ? 'text-ok' : 'text-danger'} dir="ltr">
+                      {(p.pnl ?? 0) >= 0 ? '+' : ''}
                       {usd(p.pnl ?? 0)}
                     </span>
                   </li>
                 ))}
+                {d.agents.runs
+                  .filter((r) => r.status === 'done' || r.status === 'running')
+                  .slice(0, 4)
+                  .map((r) => (
+                    <li key={r.id} className="text-ink">
+                      {r.status === 'running'
+                        ? t('quant.h.aiRunning', { asset: r.asset })
+                        : t('quant.h.aiSaid', { asset: r.asset, rating: t(`quant.h.rating.${(r.rating ?? 'hold').toLowerCase()}` as MessageKey), when: formatRelative(r.finished_at ?? r.created_at) })}
+                    </li>
+                  ))}
+                {d.lastStep && (
+                  <li className="text-muted">
+                    {d.lastStep.skipped.some((s) => s.why === 'daily_loss')
+                      ? t('quant.h.pausedLoss')
+                      : d.lastStep.skipped.some((s) => s.why === 'disabled')
+                        ? t('quant.h.pausedOff')
+                        : t('quant.h.noTradeWhy')}
+                  </li>
+                )}
+                {book.closed.length === 0 && book.open.length === 0 && <li className="text-muted">{t('quant.h.fresh')}</li>}
               </ul>
             </Card>
           </>
