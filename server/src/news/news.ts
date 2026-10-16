@@ -1,8 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { requireAuth, requireElevated } from '../auth/sessions.js';
-import { postHook } from '../bot/hook.js';
+import { tradingNotice } from '../notify/trading.js';
 import { audit, getDb, kvGet, kvSet } from '../db.js';
-import { notify } from '../notify/notify.js';
 import { FEEDS, fetchFeed, type Headline } from './feeds.js';
 import { assessHeadlines, DEFAULT_MODEL, llmReady, llmSettings, llmUsage, saveLlmSettings, type Assessment } from './llm.js';
 import { ASSETS, buildPlaybook, dailyCloses, loadPlaybook, reaction, SYMBOLS, type Asset, type EventType, type Playbook } from './playbook.js';
@@ -68,8 +67,7 @@ async function tickPrices() {
 
 function announceClose(asset: Asset, pct: number, pnl: number, reason: string, headline: string) {
   const text = `${pnl >= 0 ? '✅' : '❌'} News Trader closed ${asset} ${pct >= 0 ? '+' : ''}${pct}% ($${pnl}) · ${reason}\n${headline.slice(0, 100)}\nBalance $${account.balance} (paper)`;
-  void postHook({ type: 'notice', text });
-  void notify('News Trader', `${asset} ${pct >= 0 ? '+' : ''}${pct}% (${reason})`, '/news');
+  tradingNotice(text);
 }
 
 /** One scan: feeds → new headlines → model → playbook → trades. */
@@ -138,20 +136,17 @@ export async function scanNow(): Promise<{ headlines: number; fresh: number; eve
           opened += d.open.length;
           for (const s of d.skipped) if (x.importance >= 0.5) account.skipped.unshift({ at: Date.now(), headline: h.title, asset: s.asset, why: s.why });
           for (const p of d.open) {
-            void postHook({
-              type: 'notice',
-              text: `📰 News Trader bought ${p.asset} at ${p.entry} ($${p.margin} paper)\n${h.title.slice(0, 120)}\n${p.why}\nTarget +${Math.round(((p.target - p.entry) / p.entry) * 1000) / 10}% · stop −${rules.stopPct}%`,
-            });
-            void notify('News Trader', `Bought ${p.asset}: ${h.title.slice(0, 80)}`, '/news');
+            tradingNotice(
+              `📰 News Trader bought ${p.asset} at ${p.entry} ($${p.margin} paper)\n${h.title.slice(0, 120)}\n${p.why}\nTarget +${Math.round(((p.target - p.entry) / p.entry) * 1000) / 10}% · stop −${rules.stopPct}%`,
+            );
           }
           if (x.importance >= 0.85 && !d.open.length)
-            void postHook({
-              type: 'notice',
-              text: `📰 Big news (${x.event}): ${h.title.slice(0, 120)}\n${x.why}\nNo trade: ${d.skipped
+            tradingNotice(
+              `📰 Big news (${x.event}): ${h.title.slice(0, 120)}\n${x.why}\nNo trade: ${d.skipped
                 .map((s) => `${s.asset} ${s.why}`)
                 .join('; ')
                 .slice(0, 200)}`,
-            });
+            );
         }
       }
       saveAccount(account);
@@ -213,13 +208,9 @@ function tradeTheMood() {
     }
   applyOpen(account, d.open, -1);
   for (const p of d.open) {
-    void postHook({
-      type: 'notice',
-      text: `📰 News Trader bought ${p.asset} at ${p.entry} ($${p.margin} paper) on market mood
-${p.why}
-Target +${Math.round(((p.target - p.entry) / p.entry) * 1000) / 10}% · stop −${rules.stopPct}%`,
-    });
-    void notify('News Trader', `Bought ${p.asset} on market mood`, '/news');
+    tradingNotice(
+      `📰 News Trader bought ${p.asset} at ${p.entry} ($${p.margin} paper) on market mood\n${p.why}\nTarget +${Math.round(((p.target - p.entry) / p.entry) * 1000) / 10}% · stop −${rules.stopPct}%`,
+    );
   }
   if (d.open.length || d.closeAssets.length) saveAccount(account);
 }

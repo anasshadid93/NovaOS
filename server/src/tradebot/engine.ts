@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import readline from 'node:readline';
-import { postHook } from '../bot/hook.js';
+import { tradingNotice } from '../notify/trading.js';
 import { config } from '../config.js';
 import { LOSSES, SPACES, type Epoch, type HyperoptOpts, type LossName, type Space } from './backtest.js';
 import type { JobInput, JobMessage } from './jobs.worker.js';
@@ -503,10 +503,9 @@ class Engine {
     st.positions.push(pos);
     this.touch();
     if (st.notify.entry)
-      void postHook({
-        type: 'notice',
-        text: `🤖 <b>Trade Bot</b> فتح ${pos.side === 'LONG' ? '🟢 LONG' : '🔴 SHORT'} <b>${pos.sym}</b> ${pos.lev}x\nدخول ${fmt(pos.entry)} · هدف ${fmt(pos.tp)} · وقف ${fmt(pos.sl)}\nهامش $${pos.margin.toFixed(2)}${tag === 'force' ? ' · يدوي' : ''}\n<i>تداول وهمي</i>`,
-      });
+      tradingNotice(
+        `🤖 <b>Trade Bot</b> فتح ${pos.side === 'LONG' ? '🟢 LONG' : '🔴 SHORT'} <b>${pos.sym}</b> ${pos.lev}x\nدخول ${fmt(pos.entry)} · هدف ${fmt(pos.tp)} · وقف ${fmt(pos.sl)}\nهامش $${pos.margin.toFixed(2)}${tag === 'force' ? ' · يدوي' : ''}\n<i>تداول وهمي</i>`,
+      );
     return pos;
   }
 
@@ -530,22 +529,20 @@ class Engine {
     this.tradesDirty = true;
     this.touch();
     if (st.notify.exit)
-      void postHook({
-        type: 'notice',
-        text: `${t.pnl > 0 ? '✅' : '❌'} <b>Trade Bot</b> سكّر <b>${t.sym}</b> ${t.side} ${t.lev}x — ${WHY_AR[t.why] ?? t.why}\n${money(t.pnl)} (${t.pct > 0 ? '+' : ''}${t.pct}%) · الرصيد $${st.balance.toFixed(2)}\n<i>تداول وهمي</i>`,
-      });
+      tradingNotice(
+        `${t.pnl > 0 ? '✅' : '❌'} <b>Trade Bot</b> سكّر <b>${t.sym}</b> ${t.side} ${t.lev}x — ${WHY_AR[t.why] ?? t.why}\n${money(t.pnl)} (${t.pct > 0 ? '+' : ''}${t.pct}%) · الرصيد $${st.balance.toFixed(2)}\n<i>تداول وهمي</i>`,
+      );
     if (st.notify.protection)
       for (const l of add.filter((x) => x.by !== 'cooldown'))
-        void postHook({ type: 'notice', text: `🛡️ <b>Trade Bot</b> وقّف ${l.pair === '*' ? 'كل التداول' : l.pair} لـ ${Math.round((l.until - now) / 60_000)} دقيقة\n${l.reason}` });
+        tradingNotice(`🛡️ <b>Trade Bot</b> وقّف ${l.pair === '*' ? 'كل التداول' : l.pair} لـ ${Math.round((l.until - now) / 60_000)} دقيقة\n${l.reason}`);
   }
 
   private lesson(l: ReturnType<typeof learn>) {
     this.brainDirty = true;
     if (this.st.notify.lessons)
-      void postHook({
-        type: 'notice',
-        text: `🧠 <b>Trade Bot</b> ${l.kind === 'win' ? '✅' : l.kind === 'mistake' ? '❌' : l.kind === 'dodged' ? '🛡️' : '😬'} ${l.points >= 0 ? '+' : ''}${l.points.toFixed(2)} نقطة\n${l.text}\n<i>تداول وهمي</i>`,
-      });
+      tradingNotice(
+        `🧠 <b>Trade Bot</b> ${l.kind === 'win' ? '✅' : l.kind === 'mistake' ? '❌' : l.kind === 'dodged' ? '🛡️' : '😬'} ${l.points >= 0 ? '+' : ''}${l.points.toFixed(2)} نقطة\n${l.text}\n<i>تداول وهمي</i>`,
+      );
   }
 
   private tick(sym: string, c: Candle) {
@@ -775,10 +772,9 @@ class Engine {
             if (np) {
               st.positions.push(np);
               if (st.notify.entry)
-                void postHook({
-                  type: 'notice',
-                  text: `📈 <b>Trade Bot</b> ${SLEEVE_AR[k]}: ${np.hedged ? '🛡️ تحوّط وجمع تمويل' : np.side === 'LONG' ? '🟢 LONG' : '🔴 SHORT'} <b>${sym}</b>\nدخول ${fmt(np.entry)}${k === 'donchian' ? ` · الخروج تحت ${fmt(np.sl)}` : ''}\nحجم $${np.size.toFixed(2)}\n<i>تداول وهمي</i>`,
-                });
+                tradingNotice(
+                  `📈 <b>Trade Bot</b> ${SLEEVE_AR[k]}: ${np.hedged ? '🛡️ تحوّط وجمع تمويل' : np.side === 'LONG' ? '🟢 LONG' : '🔴 SHORT'} <b>${sym}</b>\nدخول ${fmt(np.entry)}${k === 'donchian' ? ` · الخروج تحت ${fmt(np.sl)}` : ''}\nحجم $${np.size.toFixed(2)}\n<i>تداول وهمي</i>`,
+                );
             }
           }
         } else if (pos && ch) pos.sl = pos.side === 'LONG' ? ch.exit : ch.shortExit; // the exit line follows the channel
@@ -816,10 +812,9 @@ class Engine {
     const row = st.stats.daily.find((r) => r.key === today);
     if (!row && !st.running) return;
     const t = row ?? { trades: 0, profit: 0, pct: 0, wins: 0 };
-    void postHook({
-      type: 'notice',
-      text: `📊 <b>Trade Bot — ملخص اليوم</b>\n${t.trades} صفقة · ${t.wins} رابحة\nالربح ${money(t.profit)} (${t.pct > 0 ? '+' : ''}${t.pct}%)\nالرصيد $${st.balance.toFixed(2)} من $${st.start} · المجموع ${st.stats.profitPct > 0 ? '+' : ''}${st.stats.profitPct}%\n🧠 النقاط ${st.brain.points} · ${st.brain.title}\n<i>تداول وهمي</i>`,
-    });
+    tradingNotice(
+      `📊 <b>Trade Bot — ملخص اليوم</b>\n${t.trades} صفقة · ${t.wins} رابحة\nالربح ${money(t.profit)} (${t.pct > 0 ? '+' : ''}${t.pct}%)\nالرصيد $${st.balance.toFixed(2)} من $${st.start} · المجموع ${st.stats.profitPct > 0 ? '+' : ''}${st.stats.profitPct}%\n🧠 النقاط ${st.brain.points} · ${st.brain.title}\n<i>تداول وهمي</i>`,
+    );
   }
 
   // ---- backtest / hyperopt jobs -------------------------------------------------------------------
@@ -980,37 +975,32 @@ class Engine {
     if (!this.st.notify.jobs) return;
     const mins = Math.max(1, Math.round((Date.now() - job.startedAt) / 60_000));
     if (status === 'error')
-      void postHook({
-        type: 'notice',
-        text: `⚠️ <b>Trade Bot</b> ما زبط ${job.kind === 'backtest' ? 'الباك تست' : job.kind === 'train' ? 'التدريب' : job.kind === 'walkforward' ? 'الـ Walk-forward' : 'الـ Hyperopt'}\n<code>${(error ?? '').slice(0, 200)}</code>`,
-      });
+      tradingNotice(
+        `⚠️ <b>Trade Bot</b> ما زبط ${job.kind === 'backtest' ? 'الباك تست' : job.kind === 'train' ? 'التدريب' : job.kind === 'walkforward' ? 'الـ Walk-forward' : 'الـ Hyperopt'}\n<code>${(error ?? '').slice(0, 200)}</code>`,
+      );
     else if (status === 'done' && data) {
       if (job.kind === 'walkforward') {
         const d = data as { stats: Stats; windows: { testProfitPct: number }[] };
-        void postHook({
-          type: 'notice',
-          text: `🚶 <b>Trade Bot — Walk-forward</b> (${mins} د)\n${d.windows.length} نافذة · ${d.windows.filter((w) => w.testProfitPct > 0).length} رابحة\nالنتيجة ${d.stats.profitPct > 0 ? '+' : ''}${d.stats.profitPct}% · ${d.stats.cagr ?? '—'}% بالسنة · أقصى هبوط ${d.stats.maxDrawdownPct}%`,
-        });
+        tradingNotice(
+          `🚶 <b>Trade Bot — Walk-forward</b> (${mins} د)\n${d.windows.length} نافذة · ${d.windows.filter((w) => w.testProfitPct > 0).length} رابحة\nالنتيجة ${d.stats.profitPct > 0 ? '+' : ''}${d.stats.profitPct}% · ${d.stats.cagr ?? '—'}% بالسنة · أقصى هبوط ${d.stats.maxDrawdownPct}%`,
+        );
       } else if (job.kind === 'train') {
         const pr = (data as { practice?: { trading: number; judgment: number; trades: number; shadows: number } }).practice;
-        void postHook({
-          type: 'notice',
-          text: `🧠 <b>Trade Bot — تدرّب على ${job.days} يوم</b> (${mins} د)\nدرس ${pr ? pr.trades + pr.shadows : 0} موقف (${pr?.trades ?? 0} صفقة + ${pr?.shadows ?? 0} تخطّاها)\nنقاط التمرين: ${pr ? (pr.trading + pr.judgment).toFixed(1) : 0}\nالمستوى الآن: ${level(this.brain.xp).title}`,
-        });
+        tradingNotice(
+          `🧠 <b>Trade Bot — تدرّب على ${job.days} يوم</b> (${mins} د)\nدرس ${pr ? pr.trades + pr.shadows : 0} موقف (${pr?.trades ?? 0} صفقة + ${pr?.shadows ?? 0} تخطّاها)\nنقاط التمرين: ${pr ? (pr.trading + pr.judgment).toFixed(1) : 0}\nالمستوى الآن: ${level(this.brain.xp).title}`,
+        );
       } else if (job.kind === 'backtest') {
         const s = (data as { stats: Stats }).stats;
-        void postHook({
-          type: 'notice',
-          text: `🧪 <b>Trade Bot — باك تست ${job.days} يوم</b> (${mins} د)\n${s.trades} صفقة · فوز ${s.winrate}%\nالربح ${money(s.profit)} (${s.profitPct > 0 ? '+' : ''}${s.profitPct}%) · أقصى هبوط ${s.maxDrawdownPct}%\nProfit factor ${s.profitFactor ?? '—'} · Sharpe ${s.sharpe ?? '—'}`,
-        });
+        tradingNotice(
+          `🧪 <b>Trade Bot — باك تست ${job.days} يوم</b> (${mins} د)\n${s.trades} صفقة · فوز ${s.winrate}%\nالربح ${money(s.profit)} (${s.profitPct > 0 ? '+' : ''}${s.profitPct}%) · أقصى هبوط ${s.maxDrawdownPct}%\nProfit factor ${s.profitFactor ?? '—'} · Sharpe ${s.sharpe ?? '—'}`,
+        );
       } else {
         const b = (data as { best: Epoch | null }).best;
-        void postHook({
-          type: 'notice',
-          text: b
+        tradingNotice(
+          b
             ? `🧬 <b>Trade Bot — Hyperopt خلص</b> (${job.epochs} محاولة، ${mins} د)\nأحسن نتيجة: ${b.trades} صفقة · ${b.profitPct > 0 ? '+' : ''}${b.profitPct}% · هبوط ${b.ddPct}%\nافتح البوت واضغط Apply إذا بدك تعتمدها.`
             : `🧬 <b>Trade Bot — Hyperopt خلص</b> بدون نتيجة`,
-        });
+        );
       }
     }
   }

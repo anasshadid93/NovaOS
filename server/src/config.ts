@@ -121,6 +121,9 @@ export const config = {
   botPort: num('MANAR_BOT_PORT', 'botPort', 7478),
   /** Where events are announced (an n8n webhook, …). Empty = off. */
   downloadHook: str('MANAR_DOWNLOAD_HOOK', 'downloadHook', ''),
+  /** Where trading events (Trade Bot, News Trader, Quant Desk) notify: app | telegram | all | none. One channel, one ping. */
+  tradingNotify: (['app', 'telegram', 'all', 'none'].includes(str('MANAR_TRADING_NOTIFY', 'tradingNotify', 'app')) ? str('MANAR_TRADING_NOTIFY', 'tradingNotify', 'app') : 'app') as
+    'app' | 'telegram' | 'all' | 'none',
   /** Telegram user id of the owner (Telegram Business tracking). 0 = off. */
   telegramOwner: num('MANAR_TELEGRAM_OWNER', 'telegramOwner', 0),
   /** GRERPS database for the ERP bot commands. Empty = off. */

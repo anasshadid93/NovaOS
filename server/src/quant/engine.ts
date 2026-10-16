@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { audit, getDb } from '../db.js';
+import { tradingNotice } from '../notify/trading.js';
 import { marketView } from '../news/news.js';
 import { dailyBars, quotes, technical, tradeable, type Quote } from './market.js';
 import { getSettings, type QuantSettings, type RiskLimits } from './settings.js';
@@ -359,6 +360,9 @@ export async function step(mode: Mode, now = Date.now()): Promise<StepResult | n
         .run(mode, m.asset, qty, placed.fill.price, now, stop, target, placed.fill.price, now + R.maxHoldDays * 86400_000, m.score, JSON.stringify(detail));
       db.prepare('UPDATE quant_orders SET position_id = ? WHERE id = ?').run(Number(res.lastInsertRowid), placed.orderId);
       audit(null, 'quant_open', { mode, asset: m.asset, qty, price: placed.fill.price, stop, target, score: m.score, parts: m.parts });
+      tradingNotice(
+        `🟢 Quant Desk bought ${m.asset} at ${placed.fill.price.toFixed(2)} ($${(qty * placed.fill.price).toFixed(0)} ${mode})\nstop ${stop.toFixed(2)} · target ${target.toFixed(2)} · score ${m.score}`,
+      );
       out.opened.push({ asset: m.asset, qty, price: placed.fill.price });
       held.add(m.asset);
     }
@@ -376,6 +380,7 @@ export async function closePosition(mode: Mode, p: Position, px: number, reason:
   const pnl = p.qty * (placed.fill.price - p.entry) - placed.fill.fee - entryFee;
   getDb().prepare('UPDATE quant_positions SET closed_at = ?, exit = ?, pnl = ?, reason = ? WHERE id = ? AND closed_at IS NULL').run(Date.now(), placed.fill.price, pnl, reason, p.id);
   audit(null, 'quant_close', { mode, asset: p.asset, qty: p.qty, entry: p.entry, exit: placed.fill.price, pnl, reason });
+  tradingNotice(`${pnl >= 0 ? '✅' : '❌'} Quant Desk sold ${p.asset} (${reason}) ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${(((placed.fill.price - p.entry) / p.entry) * 100).toFixed(1)}%)`);
   return pnl;
 }
 

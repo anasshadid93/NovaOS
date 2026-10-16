@@ -69,6 +69,12 @@ then in an **elevated** session call authorise with the exact phrase and a per-o
 write can only switch live *off*; the kill switch blocks all new orders. Binance spot and the
 Binance testnet are implemented; the engine's risk rules still apply on top.
 
+## Notifications
+
+Trading events (Trade Bot, News Trader, Quant Desk) notify **once, on one channel**. `tradingNotify`
+in `var/manar.json`: `app` (default: the NovaOS Android app), `telegram` (via the n8n hook), `all`,
+or `none`.
+
 ## Install
 
 ```bash
