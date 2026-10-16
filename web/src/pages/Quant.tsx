@@ -182,7 +182,7 @@ interface Data {
 
 const usd = (v: number) => `$${v.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 const px = (v: number) => (v >= 100 ? v.toLocaleString('en-US', { maximumFractionDigits: 2 }) : v.toPrecision(4));
-const TABS = ['overview', 'futures', 'signals', 'agents', 'backtests', 'risk', 'audit'] as const;
+const TABS = ['overview', 'trades', 'futures', 'signals', 'agents', 'backtests', 'risk', 'audit'] as const;
 type Tab = (typeof TABS)[number];
 const PHRASE = 'I AUTHORIZE LIVE TRADING WITH REAL FUNDS';
 
@@ -221,6 +221,24 @@ export function Quant() {
   const [bt, setBt] = useState({ start: '2021-01-01', end: new Date().toISOString().slice(0, 10), trainDays: 365, testDays: 90 });
   const [keys, setKeys] = useState({ anthropic: '', openai: '', broker: 'binance-testnet', key: '', secret: '', phrase: '', maxNotionalUsd: 100 });
   const [auditRows, setAudit] = useState<{ ts: number; action: string; detail: string | null }[]>([]);
+  const [orders, setOrders] = useState<
+    {
+      id: number;
+      at: number;
+      mode: string;
+      asset: string;
+      side: 'buy' | 'sell';
+      qty: number;
+      price: number;
+      notional: number;
+      fee: number;
+      reason: string;
+      position_id: number | null;
+      pnl: number | null;
+      entry: number | null;
+      pdetail: string | null;
+    }[]
+  >([]);
 
   const load = () =>
     api<Data>('/api/quant')
@@ -238,6 +256,10 @@ export function Quant() {
     if (tab === 'audit')
       api<typeof auditRows>('/api/quant/audit?limit=150')
         .then(setAudit)
+        .catch(() => undefined);
+    if (tab === 'trades')
+      api<typeof orders>('/api/quant/orders?limit=300')
+        .then(setOrders)
         .catch(() => undefined);
   }, [tab, d?.lastStep?.at]);
 
@@ -511,6 +533,124 @@ export function Quant() {
                   </li>
                 )}
                 {book.closed.length === 0 && book.open.length === 0 && <li className="text-muted">{t('quant.h.fresh')}</li>}
+              </ul>
+            </Card>
+          </>
+        )}
+
+        {tab === 'trades' && (
+          <>
+            <Card title={t('quant.l.holdings')}>
+              {d.paper.open.length + d.futures.open.length === 0 && <p className="text-xs text-muted">{t('quant.noOpen')}</p>}
+              <table className="w-full text-sm">
+                <thead className="text-[11px] text-muted">
+                  <tr>
+                    <th className="text-start font-normal">{t('quant.l.what')}</th>
+                    <th className="text-end font-normal">{t('quant.l.qty')}</th>
+                    <th className="text-end font-normal">{t('quant.l.paid')}</th>
+                    <th className="text-end font-normal">{t('quant.l.now')}</th>
+                    <th className="text-end font-normal">{t('quant.l.pnl')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.paper.open.map((p) => {
+                    const cur = d.quotes[p.asset]?.price ?? p.entry;
+                    const u = (cur - p.entry) * p.qty;
+                    return (
+                      <tr key={`s${p.id}`} className="border-t border-line">
+                        <td className="py-1.5 text-ink">
+                          {p.asset} <span className="text-[11px] text-muted">{t('quant.l.spot')}</span>
+                        </td>
+                        <td className="text-end tabular-nums text-ink" dir="ltr">
+                          {p.qty}
+                        </td>
+                        <td className="text-end tabular-nums text-ink" dir="ltr">
+                          {usd(p.qty * p.entry)}
+                        </td>
+                        <td className="text-end tabular-nums text-ink" dir="ltr">
+                          {usd(p.qty * cur)}
+                        </td>
+                        <td className={`text-end tabular-nums ${u >= 0 ? 'text-ok' : 'text-danger'}`} dir="ltr">
+                          {u >= 0 ? '+' : ''}
+                          {usd(u)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {d.futures.open.map((p) => {
+                    const pd = JSON.parse(p.detail ?? '{}') as { side: 1 | -1; leverage: number; margin: number; fundingAcc: number; entryFee: number };
+                    const cur = d.futures.marks[p.asset]?.mark ?? p.entry;
+                    const u = (cur - p.entry) * p.qty * pd.side - pd.fundingAcc - pd.entryFee;
+                    return (
+                      <tr key={`f${p.id}`} className="border-t border-line">
+                        <td className="py-1.5 text-ink">
+                          {p.asset}{' '}
+                          <span className="text-[11px] text-muted">
+                            {pd.side === 1 ? t('quant.f.long') : t('quant.f.short')} {pd.leverage}x
+                          </span>
+                        </td>
+                        <td className="text-end tabular-nums text-ink" dir="ltr">
+                          {p.qty}
+                        </td>
+                        <td className="text-end tabular-nums text-ink" dir="ltr">
+                          {usd(pd.margin)}
+                        </td>
+                        <td className="text-end tabular-nums text-ink" dir="ltr">
+                          {usd(pd.margin + u)}
+                        </td>
+                        <td className={`text-end tabular-nums ${u >= 0 ? 'text-ok' : 'text-danger'}`} dir="ltr">
+                          {u >= 0 ? '+' : ''}
+                          {usd(u)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <p className="mt-2 text-xs text-muted">{t('quant.l.cash', { spot: usd(d.paper.cash), fut: usd(d.futures.cash) })}</p>
+            </Card>
+            <Card title={t('quant.l.ledger')}>
+              {orders.length === 0 && <p className="text-xs text-muted">{t('quant.noTrades')}</p>}
+              <ul className="divide-y divide-line text-sm">
+                {orders.map((o) => {
+                  const isFut = o.mode === 'futures';
+                  const pd = isFut && o.pdetail ? (JSON.parse(o.pdetail) as { side: 1 | -1; leverage: number; margin: number }) : null;
+                  const opening = o.reason === 'entry';
+                  const verb = isFut
+                    ? opening
+                      ? o.side === 'buy'
+                        ? t('quant.l.openedLong')
+                        : t('quant.l.openedShort')
+                      : t('quant.l.closed')
+                    : o.side === 'buy'
+                      ? t('quant.l.bought')
+                      : t('quant.l.sold');
+                  return (
+                    <li key={o.id} className="py-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-ink">
+                          <span className={`me-1 inline-block size-2 rounded-full ${o.side === 'buy' ? 'bg-ok' : 'bg-danger'}`} aria-hidden />
+                          {verb}{' '}
+                          <b>
+                            {o.qty} {o.asset}
+                          </b>{' '}
+                          {t('quant.l.at')} <span dir="ltr">{px(o.price)}</span>
+                          {isFut && pd ? ` · ${pd.leverage}x` : ''}
+                        </span>
+                        <span className="shrink-0 text-xs text-muted">{formatRelative(o.at)}</span>
+                      </div>
+                      <div className="ms-3 flex justify-between text-xs text-muted" dir="ltr">
+                        <span>{isFut && pd ? `${t('quant.l.margin')} ${usd(pd.margin)} · ${t('quant.l.size')} ${usd(o.notional)}` : `= ${usd(o.notional)}`}</span>
+                        {!opening && o.pnl !== null && (
+                          <span className={o.pnl >= 0 ? 'text-ok' : 'text-danger'}>
+                            {t(`quant.why.${o.reason}` as MessageKey) || t(`quant.f.r.${o.reason}` as MessageKey)} · {o.pnl >= 0 ? '+' : ''}
+                            {usd(o.pnl)}
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </Card>
           </>

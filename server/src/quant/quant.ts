@@ -250,6 +250,19 @@ export async function quantRoutes(app: FastifyInstance) {
     }
   });
 
+  /** Plain ledger: every filled order of both books, newest first, with the realised P&L on closes. */
+  app.get<{ Querystring: { limit?: string } }>('/api/quant/orders', { preHandler: requireAuth }, async (req) => {
+    const limit = Math.min(1000, Math.max(1, Number(req.query.limit ?? 300)));
+    return getDb()
+      .prepare(
+        `SELECT o.id, o.at, o.mode, o.asset, o.side, o.qty, o.price, o.notional, o.fee, o.reason, o.position_id,
+                p.pnl AS pnl, p.entry AS entry, p.detail AS pdetail
+         FROM quant_orders o LEFT JOIN quant_positions p ON p.id = o.position_id
+         WHERE o.status = 'filled' ORDER BY o.at DESC LIMIT ?`,
+      )
+      .all(limit);
+  });
+
   app.get<{ Querystring: { limit?: string } }>('/api/quant/audit', { preHandler: requireAuth }, async (req) => {
     const limit = Math.min(500, Math.max(1, Number(req.query.limit ?? 100)));
     return getDb().prepare("SELECT ts, user_id, action, detail FROM audit WHERE action LIKE 'quant_%' ORDER BY ts DESC LIMIT ?").all(limit);
